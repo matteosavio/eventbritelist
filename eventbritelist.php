@@ -1,6 +1,6 @@
 <?php
 /*
-Plugin Name: Eventbrite event functions for wordpress
+Plugin Name: List Eventbrite events on your site
 Plugin URI: https://wordpress.org/plugins/health-check/
 Description: A shortcode that grabs all future events from a profile. Make sure to cache your site, so you're not overusuing the Eventbrite API 
 Version: 0.1.0
@@ -26,7 +26,7 @@ function dievents_scripts() {
     wp_enqueue_style( 'dievents-style', plugins_url('/css/style.css',__FILE__ ));
 }
 
-function dievents_eventbrite_events($atts = [], $content = null)
+function eventbrite_list($atts = [], $content = null)
 {
     if(empty($content)) {
         $content = "";
@@ -71,21 +71,50 @@ function dievents_eventbrite_events($atts = [], $content = null)
         }
         $eventOrder = $date->getTimestamp() + $i;
         $venue = $client->get("/venues/" . $event['venue_id'] . "/");
+        $orgainizer = $client->get("/organizers/" . $event['organizer_id'] . "/");
+        $ticketClasses = $client->get("/events/" . $event['id'] . "/ticket_classes/");
+        // /events/:id/ticket_classes/:ticket_class_id/
+        
+        $ticketsAvailable = 0;
+        foreach($ticketClasses['ticket_classes'] as $ticketClass) {
+            $ticketsAvailable = $ticketClass['quantity_total'] - $ticketClass['quantity_sold'];
+        }
+        
+        
+        $ticketsAvailableString = '';
+        if($ticketsAvailable <= 0) {
+            $ticketsAvailableString = 'no tickets left';
+        }
+        else if($ticketsAvailable <= 3) {
+            if($event['is_free']) {
+                $ticketsAvailableString = 'only ' . $ticketsAvailable . ' free tickets left';
+            }
+            else {
+                $ticketsAvailableString = 'only ' . $ticketsAvailable . ' tickets left';
+            }
+        }
+        else {
+            if($event['is_free']) {
+                $ticketsAvailableString = $ticketsAvailable . ' free tickets left';
+            }
+            else {
+                $ticketsAvailableString = $ticketsAvailable . ' tickets left';
+            }
+        }
         
         $eventStrings[$eventOrder]  = '<div class="event">';
         $eventStrings[$eventOrder] .= '<div class="image"><img src="' . $event['logo']['url'] . '"></div>';
-        $eventStrings[$eventOrder] .= '<div class="title"><a href="'.$event['url'].'">' . $event['name']['html'] . '</a></div>';
+        $eventStrings[$eventOrder] .= '<div class="title"><a href="'.$event['url'].'">' . $event['name']['html'] . '</a> by <a href="' . (isset($orgainizer['website'])?$orgainizer['website']:$orgainizer['url']) . '">' . $orgainizer['name'] .  '</a></div>';
         $eventStrings[$eventOrder] .= '<div class="time"><i class="fal fa-calendar"></i> ' . $date->format('l, j. F Y H:i') . '</div>';
         $eventStrings[$eventOrder] .= '<div class="location"><i class="fal fa-thumbtack"></i> <a href="http://www.google.com/maps/place/' . $venue['latitude'] . ',' . $venue['longitude'] . '" target="_blank">' . $venue['name'] . ', ' . $venue['address']['city'] . ', ' . $venue['address']['country'] . '</a></div>';
-        $eventStrings[$eventOrder] .= '<div class="description">' . mb_strimwidth($event['description']['text'], 0, 230, "...") . '<br /><a href="'.$event['url'].'"><i class="fal fa-external-link"></i> Register on Eventbrite</a></div>';
+        $eventStrings[$eventOrder] .= '<div class="description">' . mb_strimwidth($event['description']['text'], 0, 160, "...") . '<br /><a href="'.$event['url'].'"><i class="fal fa-external-link"></i> <strong>' . $ticketsAvailableString . '</strong></a></div>';
         $eventStrings[$eventOrder] .= '</div>';
     }
     ksort($eventStrings);
-    
     $content .= implode("\n", $eventStrings);
     
     $content .= "\n".'</div>';
     
     return $content;
 }
-add_shortcode('dievents_eventbrite_events', 'dievents_eventbrite_events');
+add_shortcode('eventbrite_list', 'eventbrite_list');

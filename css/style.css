@@ -14,7 +14,7 @@
 #dievents .event {
     display: grid;
     grid-template-columns: 200px auto;
-    grid-gap: 4px 10px;
+    grid-gap: 0px 10px;
 }
 
 #dievents .event .image {

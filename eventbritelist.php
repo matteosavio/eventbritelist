@@ -87,18 +87,18 @@ function eventbrite_list($atts = [], $content = null)
         }
         else if($ticketsAvailable <= 3) {
             if($event['is_free']) {
-                $ticketsAvailableString = '<span style="color: orange"> <i class="fal fa-external-link"></i> <strong> only ' . $ticketsAvailable . '</strong> free tickets left</span>';
+                $ticketsAvailableString = '<span style="color: orange"> <i class="fal fa-ticket"></i> <strong> only ' . $ticketsAvailable . ' free tickets left</strong></span>';
             }
             else {
-                $ticketsAvailableString = '<span style="color: orange"> <i class="fal fa-external-link"></i> <strong> only ' . $ticketsAvailable . '</strong> tickets left</span>';
+                $ticketsAvailableString = '<span style="color: orange"> <i class="fal fa-ticket"></i> <strong> only ' . $ticketsAvailable . ' tickets left</strong></span>';
             }
         }
         else {
             if($event['is_free']) {
-                $ticketsAvailableString = '<span style="color: green"><i class="fal fa-external-link"></i> <strong>' . $ticketsAvailable . '</strong> free tickets left</span>';
+                $ticketsAvailableString = '<span style="color: green"><i class="fal fa-ticket"></i> <strong>' . $ticketsAvailable . ' free tickets left</strong></span>';
             }
             else {
-                $ticketsAvailableString = '<span style="color: green"><i class="fal fa-external-link"></i> <strong>' . $ticketsAvailable . '</strong> tickets left</span>';
+                $ticketsAvailableString = '<span style="color: green"><i class="fal fa-ticket"></i> <strong>' . $ticketsAvailable . ' tickets left</strong></span>';
             }
         }
         

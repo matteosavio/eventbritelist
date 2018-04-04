@@ -83,22 +83,22 @@ function eventbrite_list($atts = [], $content = null)
         
         $ticketsAvailableString = '';
         if($ticketsAvailable <= 0) {
-            $ticketsAvailableString = 'no tickets left';
+            $ticketsAvailableString = '<span style="color: red"><i class="fal fa-times-circle"></i> <strong>sold out</strong></span>';
         }
         else if($ticketsAvailable <= 3) {
             if($event['is_free']) {
-                $ticketsAvailableString = 'only ' . $ticketsAvailable . ' free tickets left';
+                $ticketsAvailableString = '<span style="color: orange"> <i class="fal fa-external-link"></i> <strong> only ' . $ticketsAvailable . '</strong> free tickets left</span>';
             }
             else {
-                $ticketsAvailableString = 'only ' . $ticketsAvailable . ' tickets left';
+                $ticketsAvailableString = '<span style="color: orange"> <i class="fal fa-external-link"></i> <strong> only ' . $ticketsAvailable . '</strong> tickets left</span>';
             }
         }
         else {
             if($event['is_free']) {
-                $ticketsAvailableString = $ticketsAvailable . ' free tickets left';
+                $ticketsAvailableString = '<span style="color: green"><i class="fal fa-external-link"></i> <strong>' . $ticketsAvailable . '</strong> free tickets left</span>';
             }
             else {
-                $ticketsAvailableString = $ticketsAvailable . ' tickets left';
+                $ticketsAvailableString = '<span style="color: green"><i class="fal fa-external-link"></i> <strong>' . $ticketsAvailable . '</strong> tickets left</span>';
             }
         }
         
@@ -107,7 +107,7 @@ function eventbrite_list($atts = [], $content = null)
         $eventStrings[$eventOrder] .= '<div class="title"><a href="'.$event['url'].'">' . $event['name']['html'] . '</a> by <a href="' . (isset($orgainizer['website'])?$orgainizer['website']:$orgainizer['url']) . '">' . $orgainizer['name'] .  '</a></div>';
         $eventStrings[$eventOrder] .= '<div class="time"><i class="fal fa-calendar"></i> ' . $date->format('l, j. F Y H:i') . '</div>';
         $eventStrings[$eventOrder] .= '<div class="location"><i class="fal fa-thumbtack"></i> <a href="http://www.google.com/maps/place/' . $venue['latitude'] . ',' . $venue['longitude'] . '" target="_blank">' . $venue['name'] . ', ' . $venue['address']['city'] . ', ' . $venue['address']['country'] . '</a></div>';
-        $eventStrings[$eventOrder] .= '<div class="description">' . mb_strimwidth($event['description']['text'], 0, 160, "...") . '<br /><a href="'.$event['url'].'"><i class="fal fa-external-link"></i> <strong>' . $ticketsAvailableString . '</strong></a></div>';
+        $eventStrings[$eventOrder] .= '<div class="description">' . mb_strimwidth($event['description']['text'], 0, 160, "...") . '<br /><a href="'.$event['url'].'">' . $ticketsAvailableString . '</a></div>';
         $eventStrings[$eventOrder] .= '</div>';
     }
     ksort($eventStrings);

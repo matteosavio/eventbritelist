@@ -56,7 +56,14 @@ function eventbrite_list($atts = [], $content = null)
     $events = [];
     
     foreach($profiles as $profile) {
-        $events = array_merge($client->get("/organizers/$profile/events/", array('start_date.range_start='.date( "Y-m-d\TH:i:s")))['events'], $events);
+        $events = array_merge(
+            $client->get("/organizers/$profile/events/",
+                array(
+                    'start_date.range_start='.date( "Y-m-d\TH:i:s"),
+                    'status=live'
+                )
+            )['events'],
+            $events);
     }
     
     $content .= '<div id="dievents">'."\n";

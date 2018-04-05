@@ -28,6 +28,8 @@ function dievents_scripts() {
 
 function eventbrite_list($atts = [], $content = null)
 {
+    $showDescription = true;
+    
     if(empty($content)) {
         $content = "";
     }
@@ -42,6 +44,10 @@ function eventbrite_list($atts = [], $content = null)
     
     if(empty($atts['profiles'])) {
         return 'Please select one or more Eventbrite profiles to get the events from';
+    }
+    
+    if(isset($atts['show_description']) && ($atts['show_description'] == "false")) {
+        $showDescription = false;
     }
     
     // should I use the regex preg_split approach instead this more readable one? https://stackoverflow.com/questions/19347005/how-can-i-explode-and-trim-whitespace
@@ -114,7 +120,11 @@ function eventbrite_list($atts = [], $content = null)
         $eventStrings[$eventOrder] .= '<div class="title"><a href="'.$event['url'].'">' . $event['name']['html'] . '</a> by <a href="' . (isset($orgainizer['website'])?$orgainizer['website']:$orgainizer['url']) . '">' . $orgainizer['name'] .  '</a></div>';
         $eventStrings[$eventOrder] .= '<div class="time"><i class="fal fa-calendar"></i> ' . $date->format('l, j. F Y H:i') . '</div>';
         $eventStrings[$eventOrder] .= '<div class="location"><i class="fal fa-thumbtack"></i> <a href="http://www.google.com/maps/place/' . $venue['latitude'] . ',' . $venue['longitude'] . '" target="_blank">' . $venue['name'] . ', ' . $venue['address']['city'] . ', ' . $venue['address']['country'] . '</a></div>';
-        $eventStrings[$eventOrder] .= '<div class="description">' . mb_strimwidth($event['description']['text'], 0, 160, "...") . '<br /><a href="'.$event['url'].'">' . $ticketsAvailableString . '</a></div>';
+        $eventStrings[$eventOrder] .= '<div class="description">';
+        if($showDescription) {
+            $eventStrings[$eventOrder] .= mb_strimwidth($event['description']['text'], 0, 160, "...") . '<br />';
+        }
+        $eventStrings[$eventOrder] .= '<a href="'.$event['url'].'">' . $ticketsAvailableString . '</a></div>';
         $eventStrings[$eventOrder] .= '</div>';
     }
     ksort($eventStrings);

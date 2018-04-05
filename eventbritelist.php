@@ -126,12 +126,18 @@ function eventbrite_list($atts = [], $content = null)
         }
         $eventStrings[$eventOrder] .= '<a href="'.$event['url'].'">' . $ticketsAvailableString . '</a></div>';
         $eventStrings[$eventOrder] .= '</div>';
+        
+        
     }
     ksort($eventStrings);
     $content .= implode("\n", $eventStrings);
     
     $content .= "\n".'</div>';
     
+    if ( ! is_plugin_active( 'wp-super-cache/wp-cache.php' ) ) {
+        // Stop activation redirect and show error
+        return '<div style="color: red"><i class="fal fa-exclamation-triangle"></i> No cache installed (currently detecting: <a href="https://wordpress.org/plugins/wp-super-cache/">WP Super Cache</a>). Please install and cache the content of your website. This plugin is heavily using the Eventbrite API, and is not suitable for heavy traffic. If you want us to support more caching plugins <a href="http://digitalideas.io/">drop us a line</a> - your Digital Ideas team!</div>' . $content;
+    }
     return $content;
 }
 add_shortcode('eventbrite_list', 'eventbrite_list');

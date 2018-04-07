@@ -29,6 +29,7 @@ function dievents_scripts() {
 function eventbrite_list($atts = [], $content = null)
 {
     $showDescription = true;
+    $showHiddenTickets = false;
     
     if(empty($content)) {
         $content = "";
@@ -48,6 +49,10 @@ function eventbrite_list($atts = [], $content = null)
     
     if(isset($atts['show_description']) && ($atts['show_description'] == "false")) {
         $showDescription = false;
+    }
+    
+    if(isset($atts['show_hidden_tickets']) && ($atts['show_hidden_tickets'] == "true")) {
+        $showHiddenTickets = true;
     }
     
     // should I use the regex preg_split approach instead this more readable one? https://stackoverflow.com/questions/19347005/how-can-i-explode-and-trim-whitespace
@@ -90,41 +95,45 @@ function eventbrite_list($atts = [], $content = null)
         
         $ticketsAvailable = 0;
         foreach($ticketClasses['ticket_classes'] as $ticketClass) {
-            $ticketsAvailable = $ticketClass['quantity_total'] - $ticketClass['quantity_sold'];
+            if(!$ticketClass['hidden'] || $showHiddenTickets) {
+                $ticketsAvailable += $ticketClass['quantity_total'] - $ticketClass['quantity_sold'];
+            }
         }
-        
         
         $ticketsAvailableString = '';
         if($ticketsAvailable <= 0) {
-            $ticketsAvailableString = '<span style="color: red"><i class="fal fa-times-circle"></i> <strong>sold out</strong></span>';
+            $ticketsAvailableString = '<i class="fal fa-times-circle"></i> no tickets left';
+            $ticketsAvailableString = '<a href="'.$event['url'].'" class="button soldout">' . $ticketsAvailableString . '</a>';
         }
         else if($ticketsAvailable <= 3) {
             if($event['is_free']) {
-                $ticketsAvailableString = '<span style="color: orange"> <i class="fal fa-ticket"></i> <strong> only ' . $ticketsAvailable . ' free tickets left</strong></span>';
+                $ticketsAvailableString = '<i class="fal fa-ticket"></i> just ' . $ticketsAvailable . ' free tickets avaiable';
             }
             else {
-                $ticketsAvailableString = '<span style="color: orange"> <i class="fal fa-ticket"></i> <strong> only ' . $ticketsAvailable . ' tickets left</strong></span>';
+                $ticketsAvailableString = '<i class="fal fa-ticket"></i> just ' . $ticketsAvailable . ' tickets avaiable';
             }
+            $ticketsAvailableString = '<a href="'.$event['url'].'" class="button limited">' . $ticketsAvailableString . '</a>';
         }
         else {
             if($event['is_free']) {
-                $ticketsAvailableString = '<span style="color: green"><i class="fal fa-ticket"></i> <strong>' . $ticketsAvailable . ' free tickets left</strong></span>';
+                $ticketsAvailableString = '<i class="fal fa-ticket"></i> ' . $ticketsAvailable . ' free tickets avaiable';
             }
             else {
-                $ticketsAvailableString = '<span style="color: green"><i class="fal fa-ticket"></i> <strong>' . $ticketsAvailable . ' tickets left</strong></span>';
+                $ticketsAvailableString = '<i class="fal fa-ticket"></i> ' . $ticketsAvailable . ' tickets avaiable';
             }
+            $ticketsAvailableString = '<a href="'.$event['url'].'" class="button available">' . $ticketsAvailableString . '</a>';
         }
         
         $eventStrings[$eventOrder]  = '<div class="event">';
         $eventStrings[$eventOrder] .= '<div class="image"><img src="' . $event['logo']['url'] . '"></div>';
-        $eventStrings[$eventOrder] .= '<div class="title"><a href="'.$event['url'].'">' . $event['name']['html'] . '</a> by <a href="' . (isset($orgainizer['website'])?$orgainizer['website']:$orgainizer['url']) . '">' . $orgainizer['name'] .  '</a></div>';
         $eventStrings[$eventOrder] .= '<div class="time"><i class="fal fa-calendar"></i> ' . $date->format('l, j. F Y H:i') . '</div>';
+        $eventStrings[$eventOrder] .= '<div class="title"><a href="'.$event['url'].'">' . $event['name']['html'] . '</a> by <a href="' . (isset($orgainizer['website'])?$orgainizer['website']:$orgainizer['url']) . '">' . $orgainizer['name'] .  '</a></div>';
         $eventStrings[$eventOrder] .= '<div class="location"><i class="fal fa-thumbtack"></i> <a href="http://www.google.com/maps/place/' . $venue['latitude'] . ',' . $venue['longitude'] . '" target="_blank">' . $venue['name'] . ', ' . $venue['address']['city'] . ', ' . $venue['address']['country'] . '</a></div>';
         $eventStrings[$eventOrder] .= '<div class="description">';
         if($showDescription) {
             $eventStrings[$eventOrder] .= mb_strimwidth($event['description']['text'], 0, 160, "...") . '<br />';
         }
-        $eventStrings[$eventOrder] .= '<a href="'.$event['url'].'">' . $ticketsAvailableString . '</a></div>';
+        $eventStrings[$eventOrder] .= $ticketsAvailableString . '</div>';
         $eventStrings[$eventOrder] .= '</div>';
         
         

@@ -57,6 +57,7 @@
     display: inline-block;
     font-weight: bold;
     font-size: 80%;
+    margin: 0.3em 0;
 }
 
 #dievents .button.available {

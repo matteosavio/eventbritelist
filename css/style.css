@@ -44,7 +44,8 @@
 
 #dievents div {
     font-size: 100%;
-    line-height: 1em;
+    line-height: 1.2em;
+    padding: 0.3em 0;
 }
     
 #dievents .button {
@@ -57,7 +58,7 @@
     display: inline-block;
     font-weight: bold;
     font-size: 80%;
-    margin: 0.3em 0;
+    margin: .3em 0;
 }
 
 #dievents .button.available {
@@ -75,6 +76,7 @@
 #dievents .button:hover {
     text-decoration: none;
     opacity: 0.7;
+    padding: .3em .7em;
 }
 
 @media screen and (max-width: 39.9375em) {

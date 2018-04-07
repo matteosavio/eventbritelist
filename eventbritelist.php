@@ -102,24 +102,24 @@ function eventbrite_list($atts = [], $content = null)
         
         $ticketsAvailableString = '';
         if($ticketsAvailable <= 0) {
-            $ticketsAvailableString = '<i class="fal fa-times-circle"></i> no tickets left';
+            $ticketsAvailableString = '&otimes; no tickets left';
             $ticketsAvailableString = '<a href="'.$event['url'].'" class="button soldout">' . $ticketsAvailableString . '</a>';
         }
         else if($ticketsAvailable <= 3) {
             if($event['is_free']) {
-                $ticketsAvailableString = '<i class="fal fa-ticket"></i> just ' . $ticketsAvailable . ' free tickets avaiable';
+                $ticketsAvailableString = 'only ' . $ticketsAvailable . ' free tickets avaiable &#8811;';
             }
             else {
-                $ticketsAvailableString = '<i class="fal fa-ticket"></i> just ' . $ticketsAvailable . ' tickets avaiable';
+                $ticketsAvailableString = 'only ' . $ticketsAvailable . ' tickets avaiable &#8811;';
             }
             $ticketsAvailableString = '<a href="'.$event['url'].'" class="button limited">' . $ticketsAvailableString . '</a>';
         }
         else {
             if($event['is_free']) {
-                $ticketsAvailableString = '<i class="fal fa-ticket"></i> ' . $ticketsAvailable . ' free tickets avaiable';
+                $ticketsAvailableString = $ticketsAvailable . ' free tickets avaiable &#8811;';
             }
             else {
-                $ticketsAvailableString = '<i class="fal fa-ticket"></i> ' . $ticketsAvailable . ' tickets avaiable';
+                $ticketsAvailableString = $ticketsAvailable . ' tickets avaiable &#8811;';
             }
             $ticketsAvailableString = '<a href="'.$event['url'].'" class="button available">' . $ticketsAvailableString . '</a>';
         }

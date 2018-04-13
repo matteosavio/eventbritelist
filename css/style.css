@@ -84,6 +84,6 @@
         grid-template-columns: auto;
     }
     #dievents .event .image img {
-        height: 200px;
+        height: 160px;
     }
 }

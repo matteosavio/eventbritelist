@@ -1,54 +1,58 @@
-#dievents {
+.eventbritelist-loading {
+    text-align: center;
+}
+
+.eventbritelist {
     display: grid;
     grid-gap: 20px;
 }
 
-#dievents .event {
+.eventbritelist .event {
 }
 
-#dievents .event .title {
+.eventbritelist .event .title {
     font-weight: bold;
 }
 
-#dievents .event {
+.eventbritelist .event {
     display: grid;
     grid-template-columns: 200px auto;
     grid-gap: 0px 10px;
 }
 
-#dievents .event .time, #dievents .event .location {
+.eventbritelist .event .time, .eventbritelist .event .location {
     font-size: 80%;
 }
 
-#dievents .event .image {
+.eventbritelist .event .image {
     grid-row: 1/5;
     padding-top: 3px;
 }
 
-#dievents .event .image img {
+.eventbritelist .event .image img {
     object-fit: cover;
     height: 120px;
 }
 
-#dievents .event:hover .image img {
+.eventbritelist .event:hover .image img {
     transform: scale(1.02);
 }
 
-#dievents .event .link {
+.eventbritelist .event .link {
     text-align: right;
 }
 
-#dievents p {
+.eventbritelist p {
     padding-bottom: 0;
 }
 
-#dievents div {
+.eventbritelist div {
     font-size: 100%;
     line-height: 1.2em;
     padding: 0.3em 0;
 }
     
-#dievents .button {
+.eventbritelist .button {
     background-color: green;
     border: none;
     color: white;
@@ -61,29 +65,29 @@
     margin: .3em 0;
 }
 
-#dievents .button.available {
+.eventbritelist .button.available {
     background-color: green;
 }
 
-#dievents .button.limited {
+.eventbritelist .button.limited {
     background-color: orange;
 }
 
-#dievents .button.soldout {
+.eventbritelist .button.soldout {
     background-color: darkred;
 }
 
-#dievents .button:hover {
+.eventbritelist .button:hover {
     text-decoration: none;
     opacity: 0.7;
     padding: .3em .7em;
 }
 
 @media screen and (max-width: 39.9375em) {
-    #dievents .event {
+    .eventbritelist .event {
         grid-template-columns: auto;
     }
-    #dievents .event .image img {
+    .eventbritelist .event .image img {
         height: 160px;
     }
 }

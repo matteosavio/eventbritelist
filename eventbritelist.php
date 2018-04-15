@@ -1,10 +1,10 @@
 <?php
 /*
-Plugin Name: List Eventbrite events on your site
-Plugin URI: https://wordpress.org/plugins/health-check/
+Plugin Name: List Eventbrite events
+Plugin URI: 
 Description: A shortcode that grabs all future events from a profile. Make sure to cache your site, so you're not overusuing the Eventbrite API 
 Version: 0.1.0
-Author: Digital IDeas
+Author: Digital Ideas
 Author URI: http://www.digitalideas.io
 */
 
@@ -21,63 +21,105 @@ require_once('eventbrite-sdk-php/HttpClient.php');
 
 add_action('wp_enqueue_scripts', 'dievents_scripts');
 function dievents_scripts() {
-    wp_enqueue_script( 'fa', plugins_url( '/js/fontawesome.min.js', __FILE__ ));
-    wp_enqueue_script( 'fa-light', plugins_url( '/js/fa-light.min.js', __FILE__ ));
-    wp_enqueue_style( 'dievents-style', plugins_url('/css/style.css',__FILE__ ));
+    wp_enqueue_script('fa', plugins_url( '/js/fontawesome-all.min.js',  __FILE__ ));
+    wp_enqueue_style('dievents-style', plugins_url('/css/style.css', __FILE__ ));
+	wp_enqueue_script('eventbritelist-script', plugins_url( '/js/app.js', __FILE__ ), array('jquery'));
+	
+	wp_localize_script('eventbritelist-script', 'ajax_object',
+	    array(
+    	    'ajax_url' => admin_url( 'admin-ajax.php' )
+	    )
+    ); 
 }
 
 function eventbrite_list($atts = [], $content = null)
 {
-    $showDescription = true;
-    $showHiddenTickets = false;
-    
-    if(empty($content)) {
-        $content = "";
-    }
-    
-    if (!defined('DIEVENTS_EVENTBRITE_APP_TOKEN')) {
-        return 'Please define DIEVENTS_EVENTBRITE_APP_TOKEN in wp-config.php with your app token';
-    }
-    
-    $client = new HttpClient(DIEVENTS_EVENTBRITE_APP_TOKEN);
-    
-    $profiles = array();
-    
-    if(empty($atts['profiles'])) {
+    if(!isset($atts['profiles']) || empty($atts['profiles'])) {
         return 'Please select one or more Eventbrite profiles to get the events from';
     }
     
-    if(isset($atts['show_description']) && ($atts['show_description'] == "false")) {
+    $dataParamaters = ' data-profiles="' . esc_html($atts['profiles']) . '"';
+    
+    if(isset($atts['timeframe'])) {
+        $dataParamaters .= ' data-timeframe="' . esc_html($atts['timeframe']) . '"';
+    }
+    
+    if(isset($atts['show_description'])) {
+        $dataParamaters .= ' data-show-description="' . esc_html($atts['show_description']) . '"';
+    }
+    
+    if(isset($atts['show_hidden_tickets'])) {
+        $dataParamaters .= ' data-show-hidden-tickets="' . esc_html($atts['show_hidden_tickets']) . '"';
+    }
+    
+    return '<div class="eventbritelist-loading"' . $dataParamaters . '><i class="fas fa-spinner fa-spin"></i></div>';
+}
+add_shortcode('eventbrite_list', 'eventbrite_list');
+
+
+add_action( 'wp_ajax_eventbrite_list_ajax', 'eventbrite_list_ajax' );
+
+function eventbrite_list_ajax() {
+    echo eventbritelist_get_event_list(
+        $_POST['profiles'],
+        (isset($_POST['timeframe']) ? $_POST['timeframe'] : 'future'),
+        (isset($_POST['show_description']) ? $_POST['show_description'] : true ),
+        (isset($_POST['show_hidden_tickets']) ? $_POST['show_hidden_tickets'] : false )
+    );
+	wp_die();
+}
+
+function eventbritelist_get_event_list($profileCsv, $timeframe = 'future', $showDescription = true, $showHiddenTickets = false) {
+    if (!defined('EVENTBRITELIST_APP_TOKEN')) {
+        return 'Please define EVENTBRITELIST_APP_TOKEN in wp-config.php with your app token';
+    }
+    
+    $asanaClient = new HttpClient(EVENTBRITELIST_APP_TOKEN);
+    
+    $profiles = array();
+    
+    $profiles = array_map('trim', explode(',', $profileCsv));
+    
+    if($showDescription == "false") {
         $showDescription = false;
     }
-    
-    if(isset($atts['show_hidden_tickets']) && ($atts['show_hidden_tickets'] == "true")) {
-        $showHiddenTickets = true;
+    else {
+        $showDescription = true;
     }
     
-    // should I use the regex preg_split approach instead this more readable one? https://stackoverflow.com/questions/19347005/how-can-i-explode-and-trim-whitespace
-    $profiles = array_map('trim', explode(',', $atts['profiles']));
+    if($showHiddenTickets == "true") {
+        $showHiddenTickets = true;
+    }
+    else {
+        $showHiddenTickets = false;
+    }
     
-    $timeframe = 'future';
-    
-    if(!empty($atts['timeframe'])) {
-        $timeframe = $atts['timeframe'];
+    // only future events: default
+    $timeframe = 'start_date.range_start='.date( "Y-m-d\TH:i:s");
+    if(isset($atts['timeframe'])) {
+        switch ($atts['timeframe']) {
+            case 'past':
+                $timeframe = 'start_date.range_end='.date( "Y-m-d\TH:i:s");
+                break;
+            case 'all':
+                $timeframe = '';
+                break;
+        }
     }
     
     $events = [];
-    
     foreach($profiles as $profile) {
         $events = array_merge(
-            $client->get("/organizers/$profile/events/",
+            $asanaClient->get("/organizers/$profile/events/",
                 array(
-                    'start_date.range_start='.date( "Y-m-d\TH:i:s"),
+                    $timeframe,
                     'status=live'
                 )
             )['events'],
             $events);
     }
     
-    $content .= '<div id="dievents">'."\n";
+    $content .= '<div class="eventbritelist">'."\n";
     
     $eventStrings = [];
     foreach($events as $event) {
@@ -88,9 +130,9 @@ function eventbrite_list($atts = [], $content = null)
             $i++;
         }
         $eventOrder = $date->getTimestamp() + $i;
-        $venue = $client->get("/venues/" . $event['venue_id'] . "/");
-        $orgainizer = $client->get("/organizers/" . $event['organizer_id'] . "/");
-        $ticketClasses = $client->get("/events/" . $event['id'] . "/ticket_classes/");
+        $venue = $asanaClient->get("/venues/" . $event['venue_id'] . "/");
+        $orgainizer = $asanaClient->get("/organizers/" . $event['organizer_id'] . "/");
+        $ticketClasses = $asanaClient->get("/events/" . $event['id'] . "/ticket_classes/");
         // /events/:id/ticket_classes/:ticket_class_id/
         
         $ticketsAvailable = 0;
@@ -143,10 +185,5 @@ function eventbrite_list($atts = [], $content = null)
     
     $content .= "\n".'</div>';
     
-    if ( ! is_plugin_active( 'wp-super-cache/wp-cache.php' ) ) {
-        // Stop activation redirect and show error
-        return '<div style="color: red"><i class="fal fa-exclamation-triangle"></i> No cache installed (currently detecting: <a href="https://wordpress.org/plugins/wp-super-cache/">WP Super Cache</a>). Please install and cache the content of your website. This plugin is heavily using the Eventbrite API, and is not suitable for heavy traffic. If you want us to support more caching plugins <a href="http://digitalideas.io/">drop us a line</a> - your Digital Ideas team!</div>' . $content;
-    }
     return $content;
 }
-add_shortcode('eventbrite_list', 'eventbrite_list');

@@ -8,22 +8,17 @@ Author: Digital Ideas
 Author URI: http://www.digitalideas.io
 */
 
-// Mae it a cron job: https://tommcfarlin.com/wordpress-cron-jobs/
-// create a table for the events: https://codex.wordpress.org/Creating_Tables_with_Plugins
-
-/*add_action( 'wp_loaded', 'dievents_update_events' );
-
-function dievents_update_events {
-    echo '<!--aj test-->';
-}*/
+// TODO: CHECK IF STATUS LIVE, DELETE IF CANCELLED
 
 require_once('eventbrite-sdk-php/HttpClient.php');
+
+define('EVENTBRITELIST_EVENT_KEY', 'eventbritelist_eventbrite_id');
 
 add_action('wp_enqueue_scripts', 'dievents_scripts');
 function dievents_scripts() {
     wp_enqueue_script('fa', plugins_url( '/js/fontawesome-all.min.js',  __FILE__ ));
     wp_enqueue_style('dievents-style', plugins_url('/css/style.css', __FILE__ ));
-	wp_enqueue_script('eventbritelist-script', plugins_url( '/js/app.js', __FILE__ ), array('jquery'));
+	wp_enqueue_script('eventbritelist-script', plugins_url( '/js/app.min.js', __FILE__ ), array('jquery'));
 	
 	wp_localize_script('eventbritelist-script', 'ajax_object',
 	    array(
@@ -32,32 +27,74 @@ function dievents_scripts() {
     ); 
 }
 
-function eventbrite_list($atts = [], $content = null)
+function eventbrite_list($atts = [], $content = '')
 {
-    if(!isset($atts['profiles']) || empty($atts['profiles'])) {
-        return 'Please select one or more Eventbrite profiles to get the events from';
+    $status = 'future';
+    if(isset($atts['status'])) {
+        $status = $atts['status'];
     }
     
-    $dataParamaters = ' data-profiles="' . esc_html($atts['profiles']) . '"';
-    
-    if(isset($atts['timeframe'])) {
-        $dataParamaters .= ' data-timeframe="' . esc_html($atts['timeframe']) . '"';
+    $showExcerpt = false;
+    if(isset($atts['show_excerpt'])) {
+        $showDescription = true;
+    }
+        
+    if($showDescription == "false") {
+        $showDescription = false;
+    }
+    else {
+        $showDescription = true;
     }
     
-    if(isset($atts['show_description'])) {
-        $dataParamaters .= ' data-show-description="' . esc_html($atts['show_description']) . '"';
+    if($showHiddenTickets == "true") {
+        $showHiddenTickets = true;
+    }
+    else {
+        $showHiddenTickets = false;
     }
     
-    if(isset($atts['show_hidden_tickets'])) {
-        $dataParamaters .= ' data-show-hidden-tickets="' . esc_html($atts['show_hidden_tickets']) . '"';
+    if($_GET['create'] == 'yes') {
+        eventbritelist_read_events();
+        wp_die('yoooow!');
     }
     
-    return '<div class="eventbritelist-loading"' . $dataParamaters . '><i class="fas fa-spinner fa-spin"></i></div>';
+    $args = [
+    	'orderby'          => 'date',
+    	'order'            => 'ASC',
+    	'post_type'        => 'eventbritelist_event',
+        'post_status'      => $status,
+    	'suppress_filters' => true,
+        'posts_per_page'   => 12,
+    ];
+    $events = get_posts($args);
+    
+    $content .= '<div class="eventbritelist">'."\n";
+    foreach($events as $event) {
+        
+        
+        $content .= '<div class="event">';
+        $content .= '<div class="image"><img src="' . get_post_meta($event->ID, 'eventbritelist_eventbrite_image', true) . '"></div>';
+        $content .= '<div class="time"><i class="fal fa-calendar"></i> ' . get_the_time( "l, j. F Y H:i", $event->ID ) . '</div>';
+        $content .= '<div class="title"><a href="'.get_post_meta($event->ID, 'eventbritelist_eventbrite_link', true) .'">' . $event->post_title . '</a>';
+        
+        // by <a href="' . (isset($orgainizer['website'])?$orgainizer['website']:$orgainizer['url']) . '">' . $orgainizer['name'] .  '</a>
+        $content .= '</div>';
+        $content .= '<div class="location"><i class="fal fa-thumbtack"></i> <a href="http://www.google.com/maps/place/' . get_post_meta($event->ID, 'eventbritelist_eventbrite_location_latitude', true) . ',' . get_post_meta($event->ID, 'eventbritelist_eventbrite_location_longitude', true) . '" target="_blank">' . get_post_meta($event->ID, 'eventbritelist_eventbrite_location', true) . '</a></div>';
+        $content .= '<div class="description">';
+        if($showDescription) {
+        //    $content .= mb_strimwidth($event['description']['text'], 0, 160, "...") . '<br />';
+        }
+        $content .= '</div>';
+        $content .= '</div>';
+    }
+    
+    $content .= '</div>'."\n";
+    return $content;
 }
 add_shortcode('eventbrite_list', 'eventbrite_list');
 
 
-add_action( 'wp_ajax_eventbrite_list_ajax', 'eventbrite_list_ajax' );
+/*add_action( 'wp_ajax_eventbrite_list_ajax', 'eventbrite_list_ajax' );
 
 function eventbrite_list_ajax() {
     echo eventbritelist_get_event_list(
@@ -78,46 +115,7 @@ function eventbritelist_get_event_list($profileCsv, $timeframe = 'future', $show
     
     $profiles = array();
     
-    $profiles = array_map('trim', explode(',', $profileCsv));
     
-    if($showDescription == "false") {
-        $showDescription = false;
-    }
-    else {
-        $showDescription = true;
-    }
-    
-    if($showHiddenTickets == "true") {
-        $showHiddenTickets = true;
-    }
-    else {
-        $showHiddenTickets = false;
-    }
-    
-    // only future events: default
-    $timeframe = 'start_date.range_start='.date( "Y-m-d\TH:i:s");
-    if(isset($atts['timeframe'])) {
-        switch ($atts['timeframe']) {
-            case 'past':
-                $timeframe = 'start_date.range_end='.date( "Y-m-d\TH:i:s");
-                break;
-            case 'all':
-                $timeframe = '';
-                break;
-        }
-    }
-    
-    $events = [];
-    foreach($profiles as $profile) {
-        $events = array_merge(
-            $asanaClient->get("/organizers/$profile/events/",
-                array(
-                    $timeframe,
-                    'status=live'
-                )
-            )['events'],
-            $events);
-    }
     
     $content .= '<div class="eventbritelist">'."\n";
     
@@ -134,38 +132,7 @@ function eventbritelist_get_event_list($profileCsv, $timeframe = 'future', $show
         $orgainizer = $asanaClient->get("/organizers/" . $event['organizer_id'] . "/");
         $ticketClasses = $asanaClient->get("/events/" . $event['id'] . "/ticket_classes/");
         // /events/:id/ticket_classes/:ticket_class_id/
-        
-        $ticketsAvailable = 0;
-        foreach($ticketClasses['ticket_classes'] as $ticketClass) {
-            if(!$ticketClass['hidden'] || $showHiddenTickets) {
-                $ticketsAvailable += $ticketClass['quantity_total'] - $ticketClass['quantity_sold'];
-            }
-        }
-        
-        $ticketsAvailableString = '';
-        if($ticketsAvailable <= 0) {
-            $ticketsAvailableString = '&otimes; no tickets left';
-            $ticketsAvailableString = '<a href="'.$event['url'].'" class="button soldout">' . $ticketsAvailableString . '</a>';
-        }
-        else if($ticketsAvailable <= 3) {
-            if($event['is_free']) {
-                $ticketsAvailableString = 'only ' . $ticketsAvailable . ' free tickets avaiable &#8811;';
-            }
-            else {
-                $ticketsAvailableString = 'only ' . $ticketsAvailable . ' tickets avaiable &#8811;';
-            }
-            $ticketsAvailableString = '<a href="'.$event['url'].'" class="button limited">' . $ticketsAvailableString . '</a>';
-        }
-        else {
-            if($event['is_free']) {
-                $ticketsAvailableString = $ticketsAvailable . ' free tickets avaiable &#8811;';
-            }
-            else {
-                $ticketsAvailableString = $ticketsAvailable . ' tickets avaiable &#8811;';
-            }
-            $ticketsAvailableString = '<a href="'.$event['url'].'" class="button available">' . $ticketsAvailableString . '</a>';
-        }
-        
+                
         $eventStrings[$eventOrder]  = '<div class="event">';
         $eventStrings[$eventOrder] .= '<div class="image"><img src="' . $event['logo']['url'] . '"></div>';
         $eventStrings[$eventOrder] .= '<div class="time"><i class="fal fa-calendar"></i> ' . $date->format('l, j. F Y H:i') . '</div>';
@@ -186,4 +153,174 @@ function eventbritelist_get_event_list($profileCsv, $timeframe = 'future', $show
     $content .= "\n".'</div>';
     
     return $content;
+}*/
+
+add_action('eventbritelist_hourly', 'eventbritelist_read_events');
+
+function eventbritelist_read_events() {
+    if (!defined('EVENTBRITELIST_CONFIG')) {
+        wp_die('Please define EVENTBRITELIST_CONFIG in wp-config.php with your app token');
+    }
+    $events = getEventsForProfiles(EVENTBRITELIST_CONFIG);
+    
+    foreach($events as $event) {
+        if( ($event['event']['status'] == 'live') ||
+            ($event['event']['status'] == 'started') ||
+            ($event['event']['status'] == 'ended') ||
+            ($event['event']['status'] == 'completed')
+           ) {
+            $eventBeginDate = new DateTime($event['event']['start']['local']);
+            $eventData = [
+              'post_title'    => wp_strip_all_tags($event['event']['name']['text']),
+              'post_content'  => '',
+              'post_status'   => 'publish',
+              'post_type' => 'eventbritelist_event',
+              'post_author'   => 1,
+              'post_excerpt'  => mb_strimwidth($event['description']['text'], 0, 160, "..."),
+              'post_date' => $eventBeginDate->format('Y-m-d H:i:s'),
+            ];
+            
+            $ticketsAvailable = 0;
+            foreach($event['ticketClass']['ticket_classes'] as $ticketClass) {
+                if(!$ticketClass['hidden']) {
+                    $ticketsAvailable += $ticketClass['quantity_total'] - $ticketClass['quantity_sold'];
+                }
+            }
+            
+            $customFields = [
+                'eventbritelist_eventbrite_link' => $event['event']['url'],
+                'eventbritelist_eventbrite_location' => $event['venue']['name'] . ', ' . $event['venue']['address']['city'] . ', ' . $event['venue']['address']['country'],
+                'eventbritelist_eventbrite_location_longitude' => $event['venue']['longitude'],
+                'eventbritelist_eventbrite_location_latitude' => $event['venue']['latitude'],
+                'eventbritelist_eventbrite_tickets_available' => $ticketsAvailable,
+                'eventbritelist_eventbrite_image' => urldecode($event['event']['logo']['url']),
+                'eventbritelist_eventbrite_organizer_name' => $event['organizer']['name'],
+                'eventbritelist_eventbrite_tickets_available' => $ticketsAvailable,
+                'eventbritelist_eventbrite_organizer_url' => isset($event['organizer']['website'])?$event['organizer']['website']:$event['organizer']['url']                
+            ];
+            
+            wp_mail( 'matteo@digitalideas.io', $event['event']['id'], print_r($customFields, true));
+            insertOrUpdateEvent($event['event']['id'], $eventData, $customFields);
+        }
+        else {
+            wp_mail( 'matteo@digitalideas.io', 'NOT', print_r($event, true));
+            unpublishEventIfExists($event['event']['id']);
+        }
+    }
+}
+
+register_activation_hook(__FILE__, 'eventbritelist_activation');
+
+function eventbritelist_activation() {
+    if (! wp_next_scheduled ( 'eventbritelist_hourly' )) {
+	    wp_schedule_event(time(), 'hourly', 'eventbritelist_hourly');
+    }
+}
+
+register_deactivation_hook(__FILE__, 'eventbritelist_deactivation');
+
+function eventbritelist_deactivation() {
+	wp_clear_scheduled_hook('eventbritelist_hourly');
+}
+
+function eventbritelist_init() {
+    $args = [
+            'labels' => ['name' => __( 'Eventbrite Events' ), 'singular_name' => __( 'Eventbrite Event' )],
+            'public' => false, 
+            'rewrite' => array('slug' => 'event'),
+            'supports' => array( 'title', 'author', 'editor', 'thumbnail', 'excerpt', 'custom-fields' ),
+            'public' => true,
+            'has_archive' => true,
+            'menu_position'      => null,
+		    'capability_type'    => 'post',
+        ];
+    register_post_type( 'eventbritelist_event', $args); 
+}
+
+add_action( 'init', 'eventbritelist_init' );
+
+function insertOrUpdateEvent($eventbriteEventId, $eventData, $customFields) {
+    if(empty($eventbriteEventId)) {
+        return false;
+    }
+    
+    $args = [
+    	'meta_key'         => EVENTBRITELIST_EVENT_KEY,
+    	'meta_value'       => $eventbriteEventId,
+    	'post_type'        => 'eventbritelist_event',
+    	'post_status'      => 'publish,future',
+    	'suppress_filters' => true 
+    ];
+    $existingEvents = get_posts($args);
+    
+    if($existingEvents) {
+        if(count($existingEvents) == 1) {
+            $existingEvent = array_shift($existingEvents);
+            
+            $eventData['ID'] = $existingEvent->ID;
+            if($postId = wp_update_post($eventData)) {
+                foreach($customFields as $customFieldName => $customFieldValue) {
+                    if (!add_post_meta($postId, $customFieldName, $customFieldValue, true )) { 
+                        update_post_meta($postId, $customFieldName, $customFieldValue);
+                    }
+                }
+            }
+        }
+        else {
+            wp_die("There were multiple instances of the same event with the ID $eventId found. Please delete the ones you don't want to keep, until then synching of this event is paused.");
+        }
+    }
+    else {
+        if($postId = wp_insert_post( $eventData )) {
+            if (!add_post_meta($postId, EVENTBRITELIST_EVENT_KEY, $eventbriteEventId, true ) ) { 
+                update_post_meta($postId, EVENTBRITELIST_EVENT_KEY, $eventbriteEventId);
+            }
+            foreach($customFields as $customFieldName => $customFieldValue) {
+                if ( ! add_post_meta($postId, $customFieldName, $customFieldValue, true ) ) { 
+                    update_post_meta($postId, $customFieldName, $customFieldValue);
+                }
+            }
+        }
+    }  
+}
+
+function unpublishEventIfExists($eventbriteEventId) {
+    $args = [
+    	'orderby'          => 'date',
+    	'order'            => 'DESC',
+    	'meta_key'         => EVENTBRITELIST_EVENT_KEY,
+    	'meta_value'       => $eventbriteEventId,
+    	'post_type'        => 'eventbritelist_event',
+    	'post_status'      => 'publish',
+    	'suppress_filters' => true 
+    ];
+    $existingEvents = get_posts($args);
+    
+    if($existingEvents) {
+        foreach($existingEvents as $existingEvent) {
+            wp_delete_post($existingEvent->ID);
+        }
+    }
+}
+
+function getEventsForProfiles($appProfileKeys) {
+    $eventbriteEvents = [];
+    
+    foreach($appProfileKeys as $appKey => $profiles) {
+        $asanaClient = new HttpClient(EVENTBRITELIST_APP_TOKEN);
+        foreach($profiles as $profile) {
+            $returnedEvents = $asanaClient->get("/organizers/$profile/events/", array('status=all'))['events'];
+            foreach($returnedEvents as $returnedEvent) {
+                $eventbriteEvent = array();
+                $eventbriteEvent['event'] = $returnedEvent;
+                $eventbriteEvent['venue'] = $asanaClient->get("/venues/" . $returnedEvent['venue_id'] . "/");
+                $eventbriteEvent['organizer'] = $asanaClient->get("/organizers/" . $returnedEvent['organizer_id'] . "/");
+                $eventbriteEvent['ticketClass'] = $asanaClient->get("/events/" . $returnedEvent['id'] . "/ticket_classes/");
+                $eventbriteEvents[] = $eventbriteEvent;
+            }
+        }
+        unset($asanaClient);
+    }
+    
+    return $eventbriteEvents;
 }

@@ -9,6 +9,7 @@ jQuery(document).ready(function($) {
         };
         var $t = $(this);
         jQuery.post(ajax_object.ajax_url, data, function(response) {
+            console.log(response);
             $t.replaceWith(response);
         });
     });

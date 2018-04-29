@@ -71,11 +71,45 @@ function eventbrite_list($atts = [], $content = '')
     $content .= '<div class="eventbritelist">'."\n";
     foreach($events as $event) {
         
+        $freeTicketsAvailable = get_post_meta($event->ID, 'eventbritelist_eventbrite_free_tickets_available', true);
+        $paidTicketsAvailable = get_post_meta($event->ID, 'eventbritelist_eventbrite_paid_tickets_available', true);
+        $eventUrl = get_post_meta($event->ID, 'eventbritelist_eventbrite_link', true);
+        $ticketsAvailableString = '';
+        
+        if($freeTicketsAvailable != 'NONE') {
+            $freeTicketsAvailable = intval($freeTicketsAvailable);
+            if($freeTicketsAvailable <= 0) {
+                $ticketsAvailableString = '&otimes; no tickets left';
+                $ticketsAvailableString = '<a href="' . $eventUrl . '" class="button soldout">' . $ticketsAvailableString . '</a>';
+            }
+            else if($freeTicketsAvailable <= 3) {
+                //if($event['is_free']) {
+                    $ticketsAvailableString = 'only ' . $freeTicketsAvailable . ' free tickets avaiable &#8811;';
+                /*}
+                else {
+                    $ticketsAvailableString = 'only ' . $freeTicketsAvailable . ' tickets avaiable &#8811;';
+                }*/
+                $ticketsAvailableString = '<a href="' . $eventUrl . '" class="button limited">' . $ticketsAvailableString . '</a>';
+            }
+            else {
+                //if($event['is_free']) {
+                    $ticketsAvailableString = $freeTicketsAvailable . ' free tickets avaiable &#8811;';
+                /*}
+                else {
+                    $ticketsAvailableString = $freeTicketsAvailable . ' tickets avaiable &#8811;';
+                }*/
+                $ticketsAvailableString = '<a href="' . $$eventUrl . '" class="button available">' . $ticketsAvailableString . '</a>';
+            }
+        }
+        if($paidTicketsAvailable != 'NONE') {
+            $paidTicketsAvailable = intval($paidTicketsAvailable);
+        }
+        
         
         $content .= '<div class="event">';
         $content .= '<div class="image"><img src="' . get_post_meta($event->ID, 'eventbritelist_eventbrite_image', true) . '"></div>';
         $content .= '<div class="time"><i class="fal fa-calendar"></i> ' . get_the_time( "l, j. F Y H:i", $event->ID ) . '</div>';
-        $content .= '<div class="title"><a href="'.get_post_meta($event->ID, 'eventbritelist_eventbrite_link', true) .'">' . $event->post_title . '</a>';
+        $content .= '<div class="title"><a href="' . $eventUrl  . '">' . $event->post_title . '</a>';
         
         // by <a href="' . (isset($orgainizer['website'])?$orgainizer['website']:$orgainizer['url']) . '">' . $orgainizer['name'] .  '</a>
         $content .= '</div>';
@@ -84,7 +118,7 @@ function eventbrite_list($atts = [], $content = '')
         if($showDescription) {
         //    $content .= mb_strimwidth($event['description']['text'], 0, 160, "...") . '<br />';
         }
-        $content .= '</div>';
+        $content .= $ticketsAvailableString . '</div>';
         $content .= '</div>';
     }
     
@@ -136,7 +170,7 @@ function eventbritelist_get_event_list($profileCsv, $timeframe = 'future', $show
         $eventStrings[$eventOrder]  = '<div class="event">';
         $eventStrings[$eventOrder] .= '<div class="image"><img src="' . $event['logo']['url'] . '"></div>';
         $eventStrings[$eventOrder] .= '<div class="time"><i class="fal fa-calendar"></i> ' . $date->format('l, j. F Y H:i') . '</div>';
-        $eventStrings[$eventOrder] .= '<div class="title"><a href="'.$event['url'].'">' . $event['name']['html'] . '</a> by <a href="' . (isset($orgainizer['website'])?$orgainizer['website']:$orgainizer['url']) . '">' . $orgainizer['name'] .  '</a></div>';
+        $eventStrings[$eventOrder] .= '<div class="title"><a href="' . $event['url'] . '">' . $event['name']['html'] . '</a> by <a href="' . (isset($orgainizer['website'])?$orgainizer['website']:$orgainizer['url']) . '">' . $orgainizer['name'] .  '</a></div>';
         $eventStrings[$eventOrder] .= '<div class="location"><i class="fal fa-thumbtack"></i> <a href="http://www.google.com/maps/place/' . $venue['latitude'] . ',' . $venue['longitude'] . '" target="_blank">' . $venue['name'] . ', ' . $venue['address']['city'] . ', ' . $venue['address']['country'] . '</a></div>';
         $eventStrings[$eventOrder] .= '<div class="description">';
         if($showDescription) {
@@ -150,7 +184,7 @@ function eventbritelist_get_event_list($profileCsv, $timeframe = 'future', $show
     ksort($eventStrings);
     $content .= implode("\n", $eventStrings);
     
-    $content .= "\n".'</div>';
+    $content .= "\n" . '</div>';
     
     return $content;
 }*/
@@ -161,7 +195,7 @@ function eventbritelist_read_events() {
     if (!defined('EVENTBRITELIST_CONFIG')) {
         wp_die('Please define EVENTBRITELIST_CONFIG in wp-config.php with your app token');
     }
-    $events = getEventsForProfiles(EVENTBRITELIST_CONFIG);
+    $events = eventbritelist_getEventsForProfiles(EVENTBRITELIST_CONFIG);
     
     foreach($events as $event) {
         if( ($event['event']['status'] == 'live') ||
@@ -180,30 +214,34 @@ function eventbritelist_read_events() {
               'post_date' => $eventBeginDate->format('Y-m-d H:i:s'),
             ];
             
-            $ticketsAvailable = 0;
+            $areFreeTicketsAvailable = false;
+            $freeTicketsAvailable = 0;
             foreach($event['ticketClass']['ticket_classes'] as $ticketClass) {
                 if(!$ticketClass['hidden']) {
-                    $ticketsAvailable += $ticketClass['quantity_total'] - $ticketClass['quantity_sold'];
+                    $areFreeTicketsAvailable = true;
+                    $freeTicketsAvailable += $ticketClass['quantity_total'] - $ticketClass['quantity_sold'];
                 }
             }
+            
+            $arePaidTicketsAvailable = false;
+            $paidTicketsAvailable = 0;
             
             $customFields = [
                 'eventbritelist_eventbrite_link' => $event['event']['url'],
                 'eventbritelist_eventbrite_location' => $event['venue']['name'] . ', ' . $event['venue']['address']['city'] . ', ' . $event['venue']['address']['country'],
                 'eventbritelist_eventbrite_location_longitude' => $event['venue']['longitude'],
                 'eventbritelist_eventbrite_location_latitude' => $event['venue']['latitude'],
-                'eventbritelist_eventbrite_tickets_available' => $ticketsAvailable,
-                'eventbritelist_eventbrite_image' => urldecode($event['event']['logo']['url']),
+                'eventbritelist_eventbrite_free_tickets_available' => $freeTicketsAvailable,
+                'eventbritelist_eventbrite_image' => $event['event']['logo']['url'],
                 'eventbritelist_eventbrite_organizer_name' => $event['organizer']['name'],
-                'eventbritelist_eventbrite_tickets_available' => $ticketsAvailable,
+                'eventbritelist_eventbrite_free_tickets_available' => ($areFreeTicketsAvailable?$freeTicketsAvailable:'NONE'),
+                'eventbritelist_eventbrite_paid_tickets_available' => ($arePaidTicketsAvailable?$paidTicketsAvailable:'NONE'),
                 'eventbritelist_eventbrite_organizer_url' => isset($event['organizer']['website'])?$event['organizer']['website']:$event['organizer']['url']                
             ];
             
-            wp_mail( 'matteo@digitalideas.io', $event['event']['id'], print_r($customFields, true));
             insertOrUpdateEvent($event['event']['id'], $eventData, $customFields);
         }
         else {
-            wp_mail( 'matteo@digitalideas.io', 'NOT', print_r($event, true));
             unpublishEventIfExists($event['event']['id']);
         }
     }
@@ -303,11 +341,11 @@ function unpublishEventIfExists($eventbriteEventId) {
     }
 }
 
-function getEventsForProfiles($appProfileKeys) {
+function eventbritelist_getEventsForProfiles($appProfileKeys) {
     $eventbriteEvents = [];
     
     foreach($appProfileKeys as $appKey => $profiles) {
-        $asanaClient = new HttpClient(EVENTBRITELIST_APP_TOKEN);
+        $asanaClient = new HttpClient($appKey);
         foreach($profiles as $profile) {
             $returnedEvents = $asanaClient->get("/organizers/$profile/events/", array('status=all'))['events'];
             foreach($returnedEvents as $returnedEvent) {

@@ -52,12 +52,7 @@ function eventbrite_list($atts = [], $content = '')
     else {
         $showHiddenTickets = false;
     }
-    
-    if($_GET['create'] == 'yes') {
-        eventbritelist_read_events();
-        wp_die('yoooow!');
-    }
-    
+        
     $args = [
     	'orderby'          => 'date',
     	'order'            => 'ASC',

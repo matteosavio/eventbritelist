@@ -1,58 +1,57 @@
-.eventbritelist-loading {
-    text-align: center;
-}
-
-.eventbritelist {
+.eventbritelist .list {
     display: grid;
     grid-gap: 20px;
 }
 
-.eventbritelist .event {
+.eventbritelist .list .event {
 }
 
-.eventbritelist .event .title {
+.eventbritelist .list .event .title {
     font-weight: bold;
 }
 
-.eventbritelist .event {
+.eventbritelist .list .event {
     display: grid;
     grid-template-columns: 200px auto;
     grid-gap: 0px 10px;
 }
 
-.eventbritelist .event .time, .eventbritelist .event .location {
+.eventbritelist .list .event.hidden {
+    display: none;
+}
+
+.eventbritelist .list .event .time, .eventbritelist .list .event .location {
     font-size: 80%;
 }
 
-.eventbritelist .event .image {
+.eventbritelist .list .event .image {
     grid-row: 1/5;
     padding-top: 3px;
 }
 
-.eventbritelist .event .image img {
-    object-fit: cover;
-    height: 120px;
+.eventbritelist .list .event .image img {
+    height: 100px;
 }
 
-.eventbritelist .event:hover .image img {
+.eventbritelist .list .event:hover .image img {
     transform: scale(1.02);
 }
 
-.eventbritelist .event .link {
+.eventbritelist .list .event .link {
     text-align: right;
 }
 
-.eventbritelist p {
+.eventbritelist .list p {
     padding-bottom: 0;
 }
 
-.eventbritelist div {
+.eventbritelist .list div {
     font-size: 100%;
     line-height: 1.2em;
     padding: 0.3em 0;
 }
     
-.eventbritelist .button {
+.eventbritelist .list .button {
     background-color: green;
     border: none;
     color: white;
@@ -65,29 +64,44 @@
     margin: .3em 0;
 }
 
-.eventbritelist .button.available {
+.eventbritelist button {
+    background:none!important;
+    border:none; 
+    padding:0!important;
+    cursor:pointer;
+}
+
+.eventbritelist .list button:hover {
+    text-decoration:underline;
+}
+
+.eventbritelist .list .button.available {
     background-color: green;
 }
 
-.eventbritelist .button.limited {
+.eventbritelist .list .button.limited {
     background-color: orange;
 }
 
-.eventbritelist .button.soldout {
+.eventbritelist .list .button.oneleft {
     background-color: darkred;
 }
 
-.eventbritelist .button:hover {
+.eventbritelist .list .button.soldout, .eventbritelist .list .button.future {
+    background-color: darkgray;
+}
+
+.eventbritelist .list .button:hover {
     text-decoration: none;
     opacity: 0.7;
     padding: .3em .7em;
 }
 
 @media screen and (max-width: 39.9375em) {
-    .eventbritelist .event {
+    .eventbritelist .list .event {
         grid-template-columns: auto;
     }
-    .eventbritelist .event .image img {
+    .eventbritelist .list .event .image img {
         height: 160px;
     }
 }

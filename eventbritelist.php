@@ -29,6 +29,11 @@ function dievents_scripts() {
 
 function eventbrite_list($atts = [], $content = '')
 {
+                if(isset($_GET['debug']) && ($_GET['debug'] == 'yes')) {
+                    eventbritelist_read_events();
+                   // on_sale_status UNAVAILABLE, SOLD_OUT, AVAILABLE
+                    echo 'eventbritelist_read_events executed'; exit;
+                    }
     $status = 'future';
     if(isset($atts['status'])) {
         $status = $atts['status'];
@@ -52,45 +57,67 @@ function eventbrite_list($atts = [], $content = '')
     else {
         $showHiddenTickets = false;
     }
-        
+    
+    $showMoreLinkIfThereAreHiddenEvents = true;
+    $hiddenEvents = 0;
+    
+    $limitEventsToShow = 3;
+    if(isset($atts['limit_events_to_show'])) {
+        $limitEventsWithAvailableTickets = intval($atts['limit_events_to_show']);
+    }
+    
     $args = [
     	'orderby'          => 'date',
     	'order'            => 'ASC',
     	'post_type'        => 'eventbritelist_event',
         'post_status'      => $status,
     	'suppress_filters' => true,
-        'posts_per_page'   => 12,
+        'posts_per_page'   => 100,
     ];
     $events = get_posts($args);
     
     $content .= '<div class="eventbritelist">'."\n";
+    $content .= '<div class="list">'."\n";
+    
     foreach($events as $event) {
-        $freeNonHiddenTicketsAvailable = get_post_meta($event->ID, 'eventbritelist_eventbrite_free_tickets_available', true);
-        $paidTicketsAvailable = get_post_meta($event->ID, 'eventbritelist_eventbrite_paid_tickets_available', true);
+        $freeTicketAvailability =  get_post_meta($event->ID, 'eventbritelist_eventbrite_free_tickets_availability', true);
         $eventUrl = get_post_meta($event->ID, 'eventbritelist_eventbrite_link', true);
-        $ticketsAvailableString = '';
         
-        if($freeNonHiddenTicketsAvailable != 'NONE') {
-            $freeNonHiddenTicketsAvailable = intval($freeNonHiddenTicketsAvailable);
-            if($freeNonHiddenTicketsAvailable <= 0) {
-                $ticketsAvailableString = '&otimes; no tickets left';
-                $ticketsAvailableString = '<a href="' . $eventUrl . '" class="button soldout" title="Updated: ' .  get_post_modified_time("l, j. F Y H:i", false, $event->ID ) . '">' . $ticketsAvailableString . '</a>';
+        if($freeTicketAvailability == 'AVAILABLE_NOW') {
+            $freeTicketsAvailable = (int)get_post_meta($event->ID, 'eventbritelist_eventbrite_free_tickets_availability_count', true);
+            if($freeTicketsAvailable < 1) {
+                $ticketsAvailableString = 'ticket availability could not be determined';
             }
-            else if($freeNonHiddenTicketsAvailable <= 3) {
-                $ticketsAvailableString = 'only ' . $freeNonHiddenTicketsAvailable . ' free tickets avaiable &#8811;';
-                $ticketsAvailableString = '<a href="' . $eventUrl . '" class="button limited" title="Updated: ' .  get_post_modified_time("l, j. F Y H:i", false, $event->ID ) . '">' . $ticketsAvailableString . '</a>';
+            if($freeTicketsAvailable == 1) {
+                $ticketsAvailableString = '<a href="' . $eventUrl . '" class="button oneleft" title="Updated: ' .  get_post_modified_time("l, j. F Y H:i", false, $event->ID ) . '">only ' . $freeTicketsAvailable . ' free ticket available &#8811;</a>';
+            }
+            else if($freeTicketsAvailable <= 3) {
+                $ticketsAvailableString = '<a href="' . $eventUrl . '" class="button limited" title="Updated: ' .  get_post_modified_time("l, j. F Y H:i", false, $event->ID ) . '">only ' . $freeTicketsAvailable . ' free tickets available &#8811;</a>';
             }
             else {
-                $ticketsAvailableString = $freeNonHiddenTicketsAvailable . ' free tickets avaiable &#8811;';
-                $ticketsAvailableString = '<a href="' . $eventUrl . '" class="button available" title="Updated: ' .  get_post_modified_time("l, j. F Y H:i", false, $event->ID ) . '">' . $ticketsAvailableString . '</a>';
+                $ticketsAvailableString = '<a href="' . $eventUrl . '" class="button available" title="Updated: ' .  get_post_modified_time("l, j. F Y H:i", false, $event->ID ) . '">' . $freeTicketsAvailable . ' free tickets available &#8811;</a>';
             }
         }
-        if($paidTicketsAvailable != 'NONE') {
-            $paidTicketsAvailable = intval($paidTicketsAvailable);
+        else if($freeTicketAvailability == 'AVAILABLE_IN_THE_FUTURE') {
+            $freeTicketsAvailabilityDate = new \DateTime(get_post_meta($event->ID, 'eventbritelist_eventbrite_free_tickets_availability_date', true));
+            $ticketsAvailableString = '<a href="' . $eventUrl . '" class="button future" title="Updated: ' .  get_post_modified_time("l, j. F Y H:i", false, $event->ID ) . '">free tickets available ' . $freeTicketsAvailabilityDate->format('F j H:i') . '</a>';
+        }
+        else if($freeTicketAvailability == 'SOLD_OUT') {
+            $ticketsAvailableString = '<a href="' . $eventUrl . '" class="button soldout" title="Updated: ' .  get_post_modified_time("l, j. F Y H:i", false, $event->ID ) . '">' . $ticketsAvailableString . '</a>';
+        }
+        else if($freeTicketAvailability == 'NOT_AVAILABLE') {
+            $ticketsAvailableString = '<a href="' . $eventUrl . '" class="button available" title="Updated: ' .  get_post_modified_time("l, j. F Y H:i", false, $event->ID ) . '">tickets not available</a>';
+        }
+        else;
+        
+        if($limitEventsToShow > 0) {
+            $content .= '<div class="event">';
+        }
+        else {
+            $content .= '<div class="hidden event">';
+            $hiddenEvents++;
         }
         
-        
-        $content .= '<div class="event">';
         $content .= '<div class="image"><img src="' . get_post_meta($event->ID, 'eventbritelist_eventbrite_image', true) . '"></div>';
         $content .= '<div class="time"><i class="fal fa-calendar"></i> ' . get_the_time( "l, j. F Y H:i", $event->ID ) . '</div>';
         $content .= '<div class="title">
@@ -104,8 +131,12 @@ function eventbrite_list($atts = [], $content = '')
         }
         $content .= $ticketsAvailableString . '</div>';
         $content .= '</div>';
+        $limitEventsToShow--;
     }
-    
+    $content .= '</div>'."\n";
+    if($hiddenEvents > 0) {
+        $content .= "<p><button class=\"moreevents\">Show more ($hiddenEvents) events</button></p>";
+    }
     $content .= '</div>'."\n";
     return $content;
 }
@@ -125,7 +156,7 @@ function eventbritelist_read_events() {
             ($event['event']['status'] == 'ended') ||
             ($event['event']['status'] == 'completed')
            ) {
-            $eventBeginDate = new DateTime($event['event']['start']['local']);
+            $eventBeginDate = new DateTime($event['event']['start']['local'], new \DateTimeZone('UTC'));
             $eventData = [
               'post_title'    => wp_strip_all_tags($event['event']['name']['text']),
               'post_content'  => '',
@@ -137,31 +168,79 @@ function eventbritelist_read_events() {
               'post_excerpt'  => mb_strimwidth($event['event']['description']['text'], 0, 160, "..."),
             ];
             
-            $areFreeTicketsAvailable = false;
-            $freeNonHiddenTicketsAvailable = 0;
-            foreach($event['ticketClass']['ticket_classes'] as $ticketClass) {
-                if(!$ticketClass['hidden']) {
-                    $areFreeTicketsAvailable = true;
-                    $freeNonHiddenTicketsAvailable += $ticketClass['quantity_total'] - $ticketClass['quantity_sold'];
-                }
-            }
-            
-            $arePaidTicketsAvailable = false;
-            $paidTicketsAvailable = 0;
-            
             $customFields = [
                 'eventbritelist_eventbrite_link' => $event['event']['url'],
                 'eventbritelist_eventbrite_location' => $event['venue']['name'] . ', ' . $event['venue']['address']['city'] . ', ' . $event['venue']['address']['country'],
                 'eventbritelist_eventbrite_location_longitude' => $event['venue']['longitude'],
                 'eventbritelist_eventbrite_location_latitude' => $event['venue']['latitude'],
-                'eventbritelist_eventbrite_free_tickets_available' => $freeNonHiddenTicketsAvailable,
                 'eventbritelist_eventbrite_image' => $event['event']['logo']['url'],
-                'eventbritelist_eventbrite_free_tickets_available' => ($areFreeTicketsAvailable?$freeNonHiddenTicketsAvailable:'NONE'),
-                'eventbritelist_eventbrite_paid_tickets_available' => ($arePaidTicketsAvailable?$paidTicketsAvailable:'NONE'),
                 'eventbritelist_eventbrite_organizer_name' => $event['organizer']['name'],
                 'eventbritelist_eventbrite_organizer_url' => isset($event['organizer']['website'])?$event['organizer']['website']:$event['organizer']['url']                
             ];
             
+            if($event['event']['status'] == 'live') {
+                $areOrWereFreeNonHiddenTicketsAvailable = false;
+                $freeNonHiddenTicketsAvailableNow = 0;
+                $freeNonHiddenTicketsAvailableInTheFuture = 0;
+                $freeNonHiddenTicketsTotal = 0;
+                $freeNonHiddenTicketsAvailableInTheFutureDate = null;
+                
+                foreach($event['ticketClass']['ticket_classes'] as $ticketClass) {
+                    if($ticketClass['free'] && !$ticketClass['hidden']) {
+                        $freeNonHiddenTicketsTotal += $ticketClass['quantity_total'];
+                        
+                        if($ticketClass['on_sale_status'] == 'AVAILABLE') {
+                            $areOrWereFreeNonHiddenTicketsAvailable = true;
+                            $freeNonHiddenTicketsAvailableNow += $ticketClass['quantity_total'] - $ticketClass['quantity_sold'];
+                        }
+                        else if($ticketClass['on_sale_status'] == 'NOT_YET_ON_SALE') {
+                            $freeNonHiddenTicketsAvailableInTheFuture += $ticketClass['quantity_total'] ;
+                            if(is_null($freeNonHiddenTicketsAvailableInTheFutureDate)) {
+                                $freeNonHiddenTicketsAvailableInTheFutureDate = new DateTime($ticketClass['sales_start'], new \DateTimeZone('UTC'));
+                            }
+                            else {
+                                $anotherTicketClassSalesStart = new DateTime($ticketClass['sales_start'], new \DateTimeZone('UTC'));
+                                if($anotherTicketClassSalesStart < $freeNonHiddenTicketsAvailableInTheFutureDate) {
+                                    $freeNonHiddenTicketsAvailableInTheFutureDate = $anotherTicketClassSalesStart;
+                                }
+                            }
+                        }
+                        
+                        /*
+                            It's also possible that ticket sale of all tickets has stopped. That case is detected as "Sold out".
+                        */
+                    }
+                    else {
+                        // PAID TICKETS COUNT TO BE IMPLEMENTED YET!!!
+                    }
+                }
+                
+                
+                if($freeNonHiddenTicketsTotal > 0) {
+                    if($freeNonHiddenTicketsAvailableNow > 0) { // FREE TICKETS AVAILABLE_NOW
+                        $customFields['eventbritelist_eventbrite_free_tickets_availability'] = 'AVAILABLE_NOW';
+                        $customFields['eventbritelist_eventbrite_free_tickets_availability_count'] = $freeNonHiddenTicketsAvailableNow; 
+                    }
+                    else if($freeNonHiddenTicketsAvailableInTheFuture > 0) { // FREE TICKETS AVAILABLE_IN_THE_FUTURE
+                        $customFields['eventbritelist_eventbrite_free_tickets_availability'] = 'AVAILABLE_IN_THE_FUTURE';
+                        $customFields['eventbritelist_eventbrite_free_tickets_availability_date'] = $freeNonHiddenTicketsAvailableInTheFutureDate->format(DATE_ATOM);
+                    }
+                    else { // FREE TICKETS SOLD_OUT
+                        $customFields['eventbritelist_eventbrite_free_tickets_availability'] = 'SOLD_OUT';
+                    }
+                }
+                else { // FREE TICKETS NOT_AVAILABLE
+                    $customFields['eventbritelist_eventbrite_free_tickets_availability'] = 'NOT_AVAILABLE';
+                }
+                
+                // PAID TICKETS COUNT TO BE IMPLEMENTED YET!!!
+                $customFields['eventbritelist_eventbrite_paid_tickets_available'] = 'NOT_AVAILABLE';
+            }
+            else { // EVENT IS IN THE PAST OR HAS STARTED/ENDED
+                $customFields['eventbritelist_eventbrite_free_tickets_availability'] = 'NOT_AVAILABLE';
+                $customFields['eventbritelist_eventbrite_paid_tickets_availability'] = 'NOT_AVAILABLE';
+            }
+                        
             insertOrUpdateEvent($event['event']['id'], $eventData, $customFields);
         }
         else {

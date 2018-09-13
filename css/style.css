@@ -87,8 +87,12 @@
     background-color: darkred;
 }
 
-.eventbritelist .list .button.soldout, .eventbritelist .list .button.future {
-    background-color: darkgray;
+.eventbritelist .list .button.soldout {
+    background-color: #222222;
+}
+
+.eventbritelist .list .button.future {
+    background-color: lightblue;
 }
 
 .eventbritelist .list .button:hover {

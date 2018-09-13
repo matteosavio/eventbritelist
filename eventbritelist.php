@@ -1,8 +1,8 @@
 <?php
 /*
-Plugin Name: List Eventbrite events
+Plugin Name: Show Eventbrite events
 Plugin URI: 
-Description: A shortcode that grabs all future events from a profile. Make sure to cache your site, so you're not overusuing the Eventbrite API 
+Description: The plugin grabs alls events from defined Eventbrite profiles and shows them on your website. Events get updated hourly.
 Version: 0.1.0
 Author: Digital Ideas
 Author URI: http://www.digitalideas.io
@@ -29,11 +29,11 @@ function dievents_scripts() {
 
 function eventbrite_list($atts = [], $content = '')
 {
-                if(isset($_GET['debug']) && ($_GET['debug'] == 'yes')) {
-                    eventbritelist_read_events();
-                   // on_sale_status UNAVAILABLE, SOLD_OUT, AVAILABLE
-                    echo 'eventbritelist_read_events executed'; exit;
-                    }
+    if(isset($_GET['readevents']) && ($_GET['readevents'] == 'yes')) {
+        eventbritelist_read_events();
+        // on_sale_status UNAVAILABLE, SOLD_OUT, AVAILABLE
+        echo 'eventbritelist_read_events executed'; exit;
+    }
     $status = 'future';
     if(isset($atts['status'])) {
         $status = $atts['status'];
@@ -89,13 +89,13 @@ function eventbrite_list($atts = [], $content = '')
                 $ticketsAvailableString = 'ticket availability could not be determined';
             }
             if($freeTicketsAvailable == 1) {
-                $ticketsAvailableString = '<a href="' . $eventUrl . '" class="button oneleft" title="Updated: ' .  get_post_modified_time("l, j. F Y H:i", false, $event->ID ) . '">only ' . $freeTicketsAvailable . ' free ticket available &#8811;</a>';
+                $ticketsAvailableString = '<a href="' . $eventUrl . '" class="button oneleft" title="Updated: ' .  get_post_modified_time("l, j. F Y H:i", false, $event->ID ) . '">last ticket available &#8811;</a>';
             }
             else if($freeTicketsAvailable <= 3) {
-                $ticketsAvailableString = '<a href="' . $eventUrl . '" class="button limited" title="Updated: ' .  get_post_modified_time("l, j. F Y H:i", false, $event->ID ) . '">only ' . $freeTicketsAvailable . ' free tickets available &#8811;</a>';
+                $ticketsAvailableString = '<a href="' . $eventUrl . '" class="button limited" title="Updated: ' .  get_post_modified_time("l, j. F Y H:i", false, $event->ID ) . '">just ' . $freeTicketsAvailable . ' free tickets left &#8811;</a>';
             }
             else {
-                $ticketsAvailableString = '<a href="' . $eventUrl . '" class="button available" title="Updated: ' .  get_post_modified_time("l, j. F Y H:i", false, $event->ID ) . '">' . $freeTicketsAvailable . ' free tickets available &#8811;</a>';
+                $ticketsAvailableString = '<a href="' . $eventUrl . '" class="button available" title="Updated: ' .  get_post_modified_time("l, j. F Y H:i", false, $event->ID ) . '">' . $freeTicketsAvailable . ' free tickets &#8811;</a>';
             }
         }
         else if($freeTicketAvailability == 'AVAILABLE_IN_THE_FUTURE') {
@@ -103,7 +103,7 @@ function eventbrite_list($atts = [], $content = '')
             $ticketsAvailableString = '<a href="' . $eventUrl . '" class="button future" title="Updated: ' .  get_post_modified_time("l, j. F Y H:i", false, $event->ID ) . '">free tickets available ' . $freeTicketsAvailabilityDate->format('F j H:i') . '</a>';
         }
         else if($freeTicketAvailability == 'SOLD_OUT') {
-            $ticketsAvailableString = '<a href="' . $eventUrl . '" class="button soldout" title="Updated: ' .  get_post_modified_time("l, j. F Y H:i", false, $event->ID ) . '">' . $ticketsAvailableString . '</a>';
+            $ticketsAvailableString = '<a href="' . $eventUrl . '" class="button soldout" title="Updated: ' .  get_post_modified_time("l, j. F Y H:i", false, $event->ID ) . '">no tickets left</a>';
         }
         else if($freeTicketAvailability == 'NOT_AVAILABLE') {
             $ticketsAvailableString = '<a href="' . $eventUrl . '" class="button available" title="Updated: ' .  get_post_modified_time("l, j. F Y H:i", false, $event->ID ) . '">tickets not available</a>';
@@ -160,7 +160,6 @@ function eventbritelist_read_events() {
             $eventData = [
               'post_title'    => wp_strip_all_tags($event['event']['name']['text']),
               'post_content'  => '',
-              'post_status'   => 'publish',
               'post_type' => 'eventbritelist_event',
               'post_author'   => 1,
               'post_date' => $eventBeginDate->format('Y-m-d H:i:s'),
@@ -179,6 +178,7 @@ function eventbritelist_read_events() {
             ];
             
             if($event['event']['status'] == 'live') {
+                $eventData['post_status'] = 'future';
                 $areOrWereFreeNonHiddenTicketsAvailable = false;
                 $freeNonHiddenTicketsAvailableNow = 0;
                 $freeNonHiddenTicketsAvailableInTheFuture = 0;
@@ -237,6 +237,7 @@ function eventbritelist_read_events() {
                 $customFields['eventbritelist_eventbrite_paid_tickets_available'] = 'NOT_AVAILABLE';
             }
             else { // EVENT IS IN THE PAST OR HAS STARTED/ENDED
+                $eventData['post_status'] = 'published';
                 $customFields['eventbritelist_eventbrite_free_tickets_availability'] = 'NOT_AVAILABLE';
                 $customFields['eventbritelist_eventbrite_paid_tickets_availability'] = 'NOT_AVAILABLE';
             }
@@ -364,3 +365,49 @@ function eventbritelist_getEventsForProfiles($appProfileKeys) {
     
     return $eventbriteEvents;
 }
+
+add_action('admin_menu', 'eventbritelist_plugin_menu');
+
+function eventbritelist_plugin_menu() {
+	add_theme_page('Show Eventbrite Events Configuraiton', 'Show EB Events', 'edit_theme_options', 'show-eventbrite-events', 'eventbritelist_plugin_function');
+}
+
+function eventbritelist_plugin_function() {
+    return 'test';
+}
+
+
+ function eventbritelist_settings_api_init() {
+ 	// Add the section to reading settings so we can add our
+ 	// fields to it
+ 	add_settings_section(
+		'eventbritelist_setting_section',
+		'Example settings section in reading',
+		'eventbritelist_setting_section_callback_function',
+		'reading'
+	);
+ 	
+ 	// Add the field with the names and function to use for our new
+ 	// settings, put it in our new section
+ 	add_settings_field(
+		'eventbritelist_setting_name',
+		'Example setting Name',
+		'eventbritelist_setting_callback_function',
+		'reading',
+		'eventbritelist_setting_section'
+	);
+ 	
+ 	// Register our setting so that $_POST handling is done for us and
+ 	// our callback function just has to echo the <input>
+ 	register_setting( 'reading', 'eventbritelist_setting_name' );
+ } // eventbritelist_settings_api_init()
+ 
+ add_action( 'admin_init', 'eventbritelist_settings_api_init' );
+ 
+ function eventbritelist_setting_section_callback_function() {
+ 	echo '<p>Intro text for our settings section</p>';
+ }
+ 
+ function eventbritelist_setting_callback_function() {
+ 	echo '<input name="eventbritelist_setting_name" id="eventbritelist_setting_name" type="checkbox" value="1" class="code" ' . checked( 1, get_option( 'eventbritelist_setting_name' ), false ) . ' /> Explanation text';
+ }

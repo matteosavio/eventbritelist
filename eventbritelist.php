@@ -10,9 +10,8 @@ Author URI: http://www.digitalideas.io
 
 // TODO: CHECK IF STATUS LIVE, DELETE IF CANCELLED
 
-require_once('eventbrite-sdk-php/HttpClient.php');
-
 define('EVENTBRITELIST_EVENT_KEY', 'eventbritelist_eventbrite_id');
+define('EVENTBRITE_APIv3_BASE', 'https://www.eventbriteapi.com/v3');
 
 add_action('wp_enqueue_scripts', 'dievents_scripts');
 function dievents_scripts() {
@@ -32,7 +31,7 @@ function eventbrite_list($atts = [], $content = '')
     if(isset($_GET['readevents']) && ($_GET['readevents'] == 'yes')) {
         eventbritelist_read_events();
         // on_sale_status UNAVAILABLE, SOLD_OUT, AVAILABLE
-        echo 'eventbritelist_read_events executed'; exit;
+        wp_die('eventbritelist_read_events executed');
     }
     $status = 'future';
     if(isset($atts['status'])) {
@@ -348,21 +347,19 @@ function eventbritelist_getEventsForProfiles($appProfileKeys) {
     $eventbriteEvents = [];
     
     foreach($appProfileKeys as $appKey => $profiles) {
-        $asanaClient = new HttpClient($appKey);
         foreach($profiles as $profile) {
-            $returnedEvents = $asanaClient->get("/organizers/$profile/events/", array('status=all'))['events'];
+            $returnedEvents = eventbritelist_eventbriteGetAllEventsForOrganizer($appKey, $profile);
             foreach($returnedEvents as $returnedEvent) {
                 $eventbriteEvent = array();
                 $eventbriteEvent['event'] = $returnedEvent;
-                $eventbriteEvent['venue'] = $asanaClient->get("/venues/" . $returnedEvent['venue_id'] . "/");
-                $eventbriteEvent['organizer'] = $asanaClient->get("/organizers/" . $returnedEvent['organizer_id'] . "/");
-                $eventbriteEvent['ticketClass'] = $asanaClient->get("/events/" . $returnedEvent['id'] . "/ticket_classes/");
+                $eventbriteEvent['venue'] = eventbritelist_eventbriteGetVenue($appKey, $returnedEvent['venue_id']);
+                $eventbriteEvent['organizer'] =eventbritelist_eventbriteGetOrganizer($appKey, $returnedEvent['organizer_id']);
+                $eventbriteEvent['ticketClass'] = eventbritelist_eventbriteGetTicketClasses($appKey, $returnedEvent['id']);
                 $eventbriteEvents[] = $eventbriteEvent;
             }
         }
-        unset($asanaClient);
+        unset($eventbriteClient);
     }
-    
     return $eventbriteEvents;
 }
 
@@ -376,8 +373,84 @@ function eventbritelist_plugin_function() {
     return 'test';
 }
 
+/*
+    
+$eventbriteEvent['venue'] = $eventbriteClient->get("/venues/" . $returnedEvent['venue_id'] . "/");
+$eventbriteEvent['organizer'] = $eventbriteClient->get("/organizers/" . $returnedEvent['organizer_id'] . "/");
+$eventbriteEvent['ticketClass'] = $eventbriteClient->get("/events/" . $returnedEvent['id'] . "/ticket_classes/");
+*/
 
- function eventbritelist_settings_api_init() {
+function eventbritelist_eventbriteGetVenue($tokenId, $venueId) {
+    $answer = eventbritelist_eventbriteCall($tokenId, '/venues/' . $venueId . "/", [], []);
+    return $answer;
+}
+
+function eventbritelist_eventbriteGetOrganizer($tokenId, $organizerId) {
+    $answer = eventbritelist_eventbriteCall($tokenId, '/organizers/' . $organizerId . "/", [], []);
+    return $answer;
+}
+
+function eventbritelist_eventbriteGetTicketClasses($tokenId, $eventId) {
+    $ticketClasses = [];
+    $pageToQuery = 1;
+    do {
+        $answer = eventbritelist_eventbriteCall($tokenId, '/events/' . $eventId . "/ticket_classes/", [], ['page=' . $pageToQuery]);
+        $pageToQuery++;
+        $ticketClasses = array_merge($ticketClasses, $answer['events']);
+    } while($answer['pagination']['has_more_items']);
+
+    return $ticketClasses;
+}
+
+function eventbritelist_eventbriteGetAllEventsForOrganizer($tokenId, $organizerId) {
+    $events = [];
+    $pageToQuery = 1;
+    do {
+        $answer = eventbritelist_eventbriteCall($tokenId, '/organizers/' . $organizerId . '/events/', [], ['status=all', 'page=' . $pageToQuery]);
+        $pageToQuery++;
+        $events = array_merge($events, $answer['events']);
+    } while($answer['pagination']['has_more_items']);
+
+    return $events;
+}
+
+function eventbritelist_eventbriteCall($token, $path, $body, $expand, $httpMethod = 'GET') {
+    $data = json_encode($body);
+    
+    $options = array(
+        'http'=>array(
+            'method'=>$httpMethod,
+            'header'=>"content-type: application/json\r\n",
+            'ignore_errors'=>true,
+            "header"=>"User-Agent: Website " . $_SERVER['HTTP_HOST']
+        )
+    );
+
+    if ($httpMethod == 'POST') {
+        $options['http']['content'] = $data;
+    }
+
+    $url = EVENTBRITE_APIv3_BASE . $path . '?token=' . $token;
+
+    if (!empty($expand)) {
+        $expand_str = implode('&', $expand);
+        $url = $url . '&' . $expand_str;
+    }
+    
+    $context  = stream_context_create($options);
+    
+    $result = file_get_contents($url, false, $context);
+
+    /* this is where we will handle connection errors. Eventbrite errors are a part of the response payload. We return errors as an associative array. */
+    $response = json_decode($result, true);
+    if ($response == NULL) {
+        $response = array();
+    }
+    $response['response_headers'] = $http_response_header;
+    return $response;
+}
+
+function eventbritelist_settings_api_init() {
  	// Add the section to reading settings so we can add our
  	// fields to it
  	add_settings_section(
@@ -400,14 +473,14 @@ function eventbritelist_plugin_function() {
  	// Register our setting so that $_POST handling is done for us and
  	// our callback function just has to echo the <input>
  	register_setting( 'reading', 'eventbritelist_setting_name' );
- } // eventbritelist_settings_api_init()
+} // eventbritelist_settings_api_init()
  
- add_action( 'admin_init', 'eventbritelist_settings_api_init' );
+add_action( 'admin_init', 'eventbritelist_settings_api_init' );
  
- function eventbritelist_setting_section_callback_function() {
- 	echo '<p>Intro text for our settings section</p>';
- }
+function eventbritelist_setting_section_callback_function() {
+    echo '<p>Intro text for our settings section</p>';
+}
  
- function eventbritelist_setting_callback_function() {
- 	echo '<input name="eventbritelist_setting_name" id="eventbritelist_setting_name" type="checkbox" value="1" class="code" ' . checked( 1, get_option( 'eventbritelist_setting_name' ), false ) . ' /> Explanation text';
- }
+function eventbritelist_setting_callback_function() {
+    echo '<input name="eventbritelist_setting_name" id="eventbritelist_setting_name" type="checkbox" value="1" class="code" ' . checked( 1, get_option( 'eventbritelist_setting_name' ), false ) . ' /> Explanation text';
+}

@@ -162,6 +162,7 @@ function eventbritelist_read_events() {
               'post_type' => 'eventbritelist_event',
               'post_author'   => 1,
               'post_date' => $eventBeginDate->format('Y-m-d H:i:s'),
+              'post_date_gmt' => gmdate('Y-m-d H:i:s', $eventBeginDate),
               'post_content' => $event['event']['description']['html'],
               'post_excerpt'  => mb_strimwidth($event['event']['description']['text'], 0, 160, "..."),
             ];
@@ -265,7 +266,7 @@ function eventbritelist_deactivation() {
 
 function eventbritelist_init() {
     $args = [
-            'labels' => ['name' => __( 'Eventbrite Events' ), 'singular_name' => __( 'Eventbrite Event' )],
+            'labels' => ['name' => __( 'Events' ), 'singular_name' => __( 'Event' )],
             'public' => false, 
             'rewrite' => array('slug' => 'event'),
             'supports' => array( 'title', 'author', 'editor', 'thumbnail', 'excerpt', 'custom-fields' ),

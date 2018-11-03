@@ -185,7 +185,7 @@ function eventbritelist_read_events() {
                 $freeNonHiddenTicketsTotal = 0;
                 $freeNonHiddenTicketsAvailableInTheFutureDate = null;
                 
-                foreach($event['ticketClass']['ticket_classes'] as $ticketClass) {
+                foreach($event['ticketClass'] as $ticketClass) {
                     if($ticketClass['free'] && !$ticketClass['hidden']) {
                         $freeNonHiddenTicketsTotal += $ticketClass['quantity_total'];
                         
@@ -349,8 +349,9 @@ function eventbritelist_getEventsForProfiles($appProfileKeys) {
     
     foreach($appProfileKeys as $appKey => $profiles) {
         foreach($profiles as $profile) {
-            $returnedEvents = eventbritelist_eventbriteGetAllEventsForOrganizer($appKey, $profile);
+            $returnedEvents = eventbritelist_eventbriteGetAllEventsStarting48hrsAgoForOrganizer($appKey, $profile);
             foreach($returnedEvents as $returnedEvent) {
+                
                 $eventbriteEvent = array();
                 $eventbriteEvent['event'] = $returnedEvent;
                 $eventbriteEvent['venue'] = eventbritelist_eventbriteGetVenue($appKey, $returnedEvent['venue_id']);
@@ -397,17 +398,19 @@ function eventbritelist_eventbriteGetTicketClasses($tokenId, $eventId) {
     do {
         $answer = eventbritelist_eventbriteCall($tokenId, '/events/' . $eventId . "/ticket_classes/", [], ['page=' . $pageToQuery]);
         $pageToQuery++;
-        $ticketClasses = array_merge($ticketClasses, $answer['events']);
+        $ticketClasses = array_merge($ticketClasses, $answer['ticket_classes']);
     } while($answer['pagination']['has_more_items']);
 
     return $ticketClasses;
 }
 
-function eventbritelist_eventbriteGetAllEventsForOrganizer($tokenId, $organizerId) {
+function eventbritelist_eventbriteGetAllEventsStarting48hrsAgoForOrganizer($tokenId, $organizerId) {
     $events = [];
     $pageToQuery = 1;
+    $startDate = new DateTime();
+    $startDate->modify('-48 hours');
     do {
-        $answer = eventbritelist_eventbriteCall($tokenId, '/organizers/' . $organizerId . '/events/', [], ['status=all', 'page=' . $pageToQuery]);
+        $answer = eventbritelist_eventbriteCall($tokenId, '/organizers/' . $organizerId . '/events/', [], ['status=all','start_date.range_start='.$startDate->format('Y-m-d\TH:i:s'), 'page=' . $pageToQuery]);
         $pageToQuery++;
         $events = array_merge($events, $answer['events']);
     } while($answer['pagination']['has_more_items']);
@@ -441,12 +444,21 @@ function eventbritelist_eventbriteCall($token, $path, $body, $expand, $httpMetho
     $context  = stream_context_create($options);
     
     $result = file_get_contents($url, false, $context);
-
-    /* this is where we will handle connection errors. Eventbrite errors are a part of the response payload. We return errors as an associative array. */
+    
     $response = json_decode($result, true);
-    if ($response == NULL) {
+    
+    if (empty($response)) {
         $response = array();
     }
+    else if(isset($response['status_code'])) {
+        if(isset($response['error']) && !empty($response['error'])) {
+            wp_die($response['error'] . ": " . $response['error_description'] );
+        }
+        else {
+            wp_die("Undefined error with status code " . $response['status_code'] . ": " . print_R($response, true));
+        }
+    }
+    
     $response['response_headers'] = $http_response_header;
     return $response;
 }

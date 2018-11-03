@@ -155,14 +155,15 @@ function eventbritelist_read_events() {
             ($event['event']['status'] == 'ended') ||
             ($event['event']['status'] == 'completed')
            ) {
-            $eventBeginDate = new DateTime($event['event']['start']['local'], new \DateTimeZone('UTC'));
+            $eventBeginDate = new DateTime($event['event']['start']['local']);
+            $gmEventBeginDate = new DateTime($event['event']['start']['local'], new \DateTimeZone('GMT'));
             $eventData = [
               'post_title'    => wp_strip_all_tags($event['event']['name']['text']),
               'post_content'  => '',
               'post_type' => 'eventbritelist_event',
               'post_author'   => 1,
               'post_date' => $eventBeginDate->format('Y-m-d H:i:s'),
-              'post_date_gmt' => gmdate('Y-m-d H:i:s', $eventBeginDate),
+              'post_date_gmt' => $gmEventBeginDate->format('Y-m-d H:i:s'),
               'post_content' => $event['event']['description']['html'],
               'post_excerpt'  => mb_strimwidth($event['event']['description']['text'], 0, 160, "..."),
             ];

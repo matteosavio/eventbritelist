@@ -62,7 +62,7 @@ function eventbrite_list($atts = [], $content = '')
     
     $limitEventsToShow = 3;
     if(isset($atts['limit_events_to_show'])) {
-        $limitEventsWithAvailableTickets = intval($atts['limit_events_to_show']);
+        $limitEventsToShow = intval($atts['limit_events_to_show']);
     }
     
     $args = [

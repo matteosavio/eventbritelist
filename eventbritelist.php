@@ -149,6 +149,8 @@ function eventbritelist_read_events() {
     }
     $events = eventbritelist_getEventsForProfiles(EVENTBRITELIST_CONFIG);
     
+    /* MISSING: WALK THROUGH ALL FUTURE + 1hr EVENTS WHERE the CUSTOM FIELD IS SET AND CHECK IF THE ID ISN'T IN THE EVENT_LIST */
+    
     foreach($events as $event) {
         if( ($event['event']['status'] == 'live') ||
             ($event['event']['status'] == 'started') ||

@@ -29,9 +29,9 @@ function dievents_scripts() {
 function eventbrite_list($atts = [], $content = '')
 {
     if(isset($_GET['readevents']) && ($_GET['readevents'] == 'yes')) {
-        eventbritelist_read_events();
+        eventbritelist_update_events();
         // on_sale_status UNAVAILABLE, SOLD_OUT, AVAILABLE
-        wp_die('eventbritelist_read_events executed');
+        wp_die('eventbritelist_update_events executed');
     }
     $status = 'future';
     if(isset($atts['status'])) {
@@ -117,13 +117,21 @@ function eventbrite_list($atts = [], $content = '')
             $hiddenEvents++;
         }
         
-        $content .= '<div class="image"><img src="' . get_post_meta($event->ID, 'eventbritelist_eventbrite_image', true) . '"></div>';
+        $content .= '<div class="image">';
+        if(!empty(get_post_meta($event->ID, 'eventbritelist_eventbrite_image', true))) {
+            $content .= '<img src="' . get_post_meta($event->ID, 'eventbritelist_eventbrite_image', true) . '">';
+        }
+        $content .= '</div>';
         $content .= '<div class="time"><i class="fal fa-calendar"></i> ' . get_the_time( "l, j. F Y H:i", $event->ID ) . '</div>';
         $content .= '<div class="title">
-            <a href="' . $eventUrl  . '">' . $event->post_title . '</a>
-            by <a href="' . get_post_meta($event->ID, 'eventbritelist_eventbrite_organizer_url', true) . '">' . get_post_meta($event->ID, 'eventbritelist_eventbrite_organizer_name', true) . '</a>
+            <a href="' . $eventUrl  . '">' . $event->post_title . '</a>';
+        if(!empty(get_post_meta($event->ID, 'eventbritelist_eventbrite_organizer_name', true))) {
+            $content .= ' by <a href="' . get_post_meta($event->ID, 'eventbritelist_eventbrite_organizer_url', true) . '">' . get_post_meta($event->ID, 'eventbritelist_eventbrite_organizer_name', true) . '</a>
             </div>';
-        $content .= '<div class="location"><i class="fal fa-thumbtack"></i> <a href="http://www.google.com/maps/place/' . get_post_meta($event->ID, 'eventbritelist_eventbrite_location_latitude', true) . ',' . get_post_meta($event->ID, 'eventbritelist_eventbrite_location_longitude', true) . '" target="_blank">' . get_post_meta($event->ID, 'eventbritelist_eventbrite_location', true) . '</a></div>';
+        }
+        if(!empty(get_post_meta($event->ID, 'eventbritelist_eventbrite_location', true))) {
+            $content .= '<div class="location"><i class="fal fa-thumbtack"></i> <a href="http://www.google.com/maps/place/' . get_post_meta($event->ID, 'eventbritelist_eventbrite_location_latitude', true) . ',' . get_post_meta($event->ID, 'eventbritelist_eventbrite_location_longitude', true) . '" target="_blank">' . get_post_meta($event->ID, 'eventbritelist_eventbrite_location', true) . '</a></div>';
+        }
         $content .= '<div class="description">';
         if($showDescription) {
             $content .= get_the_excerpt($event->ID) . '<br />';
@@ -141,9 +149,9 @@ function eventbrite_list($atts = [], $content = '')
 }
 add_shortcode('eventbrite_list', 'eventbrite_list');
 
-add_action('eventbritelist_hourly', 'eventbritelist_read_events');
+add_action('eventbritelist_hourly', 'eventbritelist_update_events');
 
-function eventbritelist_read_events() {
+function eventbritelist_update_events() {
     if (!defined('EVENTBRITELIST_CONFIG')) {
         wp_die('Please define EVENTBRITELIST_CONFIG in wp-config.php with your app token');
     }
@@ -170,15 +178,34 @@ function eventbritelist_read_events() {
               'post_excerpt'  => mb_strimwidth($event['event']['description']['text'], 0, 160, "..."),
             ];
             
-            $customFields = [
-                'eventbritelist_eventbrite_link' => $event['event']['url'],
-                'eventbritelist_eventbrite_location' => $event['venue']['name'] . ', ' . $event['venue']['address']['city'] . ', ' . $event['venue']['address']['country'],
-                'eventbritelist_eventbrite_location_longitude' => $event['venue']['longitude'],
-                'eventbritelist_eventbrite_location_latitude' => $event['venue']['latitude'],
-                'eventbritelist_eventbrite_image' => $event['event']['logo']['url'],
-                'eventbritelist_eventbrite_organizer_name' => $event['organizer']['name'],
-                'eventbritelist_eventbrite_organizer_url' => isset($event['organizer']['website'])?$event['organizer']['website']:$event['organizer']['url']                
-            ];
+            $customFields = ['eventbritelist_eventbrite_link' => $event['event']['url']];
+            
+            if(!empty($event['event']['logo']['url'])) {
+                $customFields['eventbritelist_eventbrite_image'] = $event['event']['logo']['url'];
+            }
+            else {
+                $customFields['eventbritelist_eventbrite_image'] = '';
+            }
+
+            if(!empty($event['venue'])) {
+                $customFields['eventbritelist_eventbrite_location'] = $event['venue']['name'] . ', ' . $event['venue']['address']['city'] . ', ' . $event['venue']['address']['country'];
+                $customFields['eventbritelist_eventbrite_location_longitude'] = $event['venue']['longitude'];
+                $customFields['eventbritelist_eventbrite_location_latitude'] = $event['venue']['latitude'];
+            }
+            else {
+                $customFields['eventbritelist_eventbrite_location'] = '';
+                $customFields['eventbritelist_eventbrite_location_longitude'] = 0;
+                $customFields['eventbritelist_eventbrite_location_latitude'] = 0;
+            }
+
+            if(!empty($event['organizer'])) {
+                $customFields['eventbritelist_eventbrite_organizer_name'] = $event['organizer']['name'];
+                $customFields['eventbritelist_eventbrite_organizer_url'] = isset($event['organizer']['website'])?$event['organizer']['website']:$event['organizer']['url'];
+            }
+            else {
+                $customFields['eventbritelist_eventbrite_organizer_name'] = '';
+                $customFields['eventbritelist_eventbrite_organizer_url'] = '';
+            }
             
             if($event['event']['status'] == 'live') {
                 $eventData['post_status'] = 'future';
@@ -249,6 +276,23 @@ function eventbritelist_read_events() {
         }
         else {
             unpublishEventIfExists($event['event']['id']);
+        }
+    }
+
+    /* check if any future event got deleted on Eventbrite and delte them if so */
+    $args = [
+    	'orderby'          => 'date',
+    	'order'            => 'ASC',
+    	'post_type'        => 'eventbritelist_event',
+        'post_status'      => 'future',
+    	'suppress_filters' => true,
+        'posts_per_page'   => 100,
+    ];
+    $futureEvents = get_posts($args);
+    
+    foreach($futureEvents as $futureEvent) {
+        if(!eventbritelist_checkIfEventExists($futureEvent->ID)) {
+            unpublishEventIfExists($futureEvent->ID);
         }
     }
 }
@@ -378,16 +422,12 @@ function eventbritelist_plugin_function() {
     return 'test';
 }
 
-/*
-    
-$eventbriteEvent['venue'] = $eventbriteClient->get("/venues/" . $returnedEvent['venue_id'] . "/");
-$eventbriteEvent['organizer'] = $eventbriteClient->get("/organizers/" . $returnedEvent['organizer_id'] . "/");
-$eventbriteEvent['ticketClass'] = $eventbriteClient->get("/events/" . $returnedEvent['id'] . "/ticket_classes/");
-*/
-
 function eventbritelist_eventbriteGetVenue($tokenId, $venueId) {
-    $answer = eventbritelist_eventbriteCall($tokenId, '/venues/' . $venueId . "/", [], []);
-    return $answer;
+    if(!empty($venueId)) {
+        $answer = eventbritelist_eventbriteCall($tokenId, '/venues/' . $venueId . "/", [], []);
+        return $answer;
+    }
+    return [];
 }
 
 function eventbritelist_eventbriteGetOrganizer($tokenId, $organizerId) {
@@ -419,6 +459,10 @@ function eventbritelist_eventbriteGetAllEventsStarting48hrsAgoForOrganizer($toke
     } while($answer['pagination']['has_more_items']);
 
     return $events;
+}
+
+function eventbritelist_checkIfEventExists($eventId) {
+    return true;
 }
 
 function eventbritelist_eventbriteCall($token, $path, $body, $expand, $httpMethod = 'GET') {
